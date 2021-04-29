@@ -6,25 +6,165 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE,warning = FALSE)
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# Análise 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
-summary(cars)
+## Base da análise
+
+[Basics of Audio File Processing in R](https://medium.com/@taposhdr/basics-of-audio-file-processing-in-r-81c31a387e8e)
+
+[An introduction to the wrassp package](https://cran.r-project.org/web/packages/wrassp/vignettes/wrassp_intro.html)
+
+# Carregando Pacotes e dependências
+```{r}
+`%>%` <- magrittr::`%>%` 
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(wrassp)
+library(tuneR)
+library(e1071)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+# Definindo o caminho dos arquivos
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+getwd()
+files<-list.files("../data-raw/",
+                  full.names=TRUE)
+files
+au = read.AsspDataObj(files[1])
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Verificando a classe do objeto
+
+```{r}
+class(au)
+print(au)
+```
+
+## Obtendo os termos no domínio do tempo usados no Processamento de Sinal Digital (DSP)
+
+
+Relação entre nro de ptos (T) ,taxa de amostragem (N) e o passo (delta.T):T=N*delta.T
+
+```{r}
+dur.AsspDataObj(au) # deta.T ou passo: The fundamental period.
+rate.AsspDataObj(au) # N (sample rate - Hz): is the number of samples taken over a time period T.
+numRecs.AsspDataObj(au) # T: nro de ptos que são capturados para realizar a transformação de Fourier
+
+attributes(au)
+tracks.AsspDataObj(au)
+head(au$audio)
+```
+
+# criando o vetor discreto no tempo(s) cujos N pontos serão amostrados: x=(0,1/N, 2/N,..., N-1/N)
+```{r}
+#x<-seq(0,numRecs.AsspDataObj(au) - 1, 1/ rate.AsspDataObj(au)) #confirmar esse -1, mas parece ok?
+
+x<-seq(0,numRecs.AsspDataObj(au) - 1, 10) / rate.AsspDataObj(au)
+#confirmar esse -1, mas parece ok?
+length(x)
+y<-au$audio[c(TRUE, rep(FALSE,9))]
+length(y)
+
+
+data.frame(x,y) %>% 
+  ggplot(aes(x,y))+
+  geom_line() +
+  theme_bw() +
+  labs(x='time (s)',
+     y='Audio samples')
+```
+
+## Reproduzindo o audacity
+
+```{r}
+xh<-stft(y,wtype="hamming.window")
+plot(xh$values)
+str(xh)
+max(xh$values)
+
+plot(log(as.vector(xh$values)))
+plot(as.vector(xh$values))
+```
+
+
+
+
+##  Obtendo os termos no domínio da frequência usados no Processamento de Sinal Digital (DSP)#
+
+calculate formants and corresponding bandwidth values
+
+```{r}
+fmBwVals = forest(files[1], toFile=F)
+str(fmBwVals)
+```
+
+due to toFile=F this returns an object of the type AsspDataObj and prevents the result being saved to disc as an SSFF file.
+
+```{r}
+class(fmBwVals)
+```
+
+extract track names  
+this time the object contains muliple tracks (formants + their bandwidths)
+
+```{r}
+tracks.AsspDataObj(fmBwVals)
+dim(fmBwVals$fm)
+matplot(seq(0,numRecs.AsspDataObj(fmBwVals) - 1) / rate.AsspDataObj(fmBwVals) +
+          attr(fmBwVals, 'startTime'),
+        fmBwVals$fm,
+        type='l',
+        xlab='time (s)',
+        ylab='Formant frequency (Hz)')
+```
+
+
+calculate the fundamental frequency contour
+
+```{r}
+f0vals = ksvF0(files[1], toFile=F)
+```
+
+plot the fundamental frequency contour
+
+```{r}
+plot(seq(0,numRecs.AsspDataObj(f0vals) - 1) / rate.AsspDataObj(f0vals) +
+       attr(f0vals, 'startTime'),
+     f0vals$F0,
+     type='l',
+     xlab='time (s)',
+     ylab='F0 frequency (Hz)')
+```
+
+
+```{r}
+rmsana(files[1], outputDirectory = tempdir())
+
+```
+
+```{r}
+rmsFilePaths = list.files(tempdir(),
+                          pattern = paste0('*.',wrasspOutputInfos$rmsana$ext),
+                          full.names = T)
+rmsvals = read.AsspDataObj(rmsFilePaths[1])
+```
+
+
+```{r}
+# plot(seq(0,numRecs.AsspDataObj(rmsvals) - 1) / rate.AsspDataObj(rmsvals) +
+#        attr(rmsvals, 'startTime'),
+#      rmsvals$rms,
+#      type='l',
+#      xlab='time (s)',
+#      ylab='RMS energy (dB)')
+```
+
