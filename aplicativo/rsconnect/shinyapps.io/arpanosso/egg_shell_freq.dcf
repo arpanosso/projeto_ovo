@@ -1,0 +1,13 @@
+name: egg_shell_freq
+title: egg_shell_freq
+username:
+account: arpanosso
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4323063
+bundleId: 4759634
+url: https://arpanosso.shinyapps.io/egg_shell_freq/
+when: 1624729031.02434
+lastSyncTime: 1624729031.02534
+asMultiple: FALSE
+asStatic: FALSE
