@@ -4,6 +4,7 @@ library(ggdendro)
 library(readxl)
 library(plotly)
 library(shiny)
+library(ggridges)
 
 path <- "DADOS_CALCIO.xlsx"
 semanas <- excel_sheets(path = path)
@@ -86,6 +87,8 @@ ui <- dashboardPage(
           fluidRow(
             column(
               width = 12,
+              plotOutput("ridges"),
+              plotOutput("boxplot"),
               tableOutput("dados")
             )
           )
@@ -109,8 +112,22 @@ server <- function(input, output, session){
       read_excel(sheet = input$semana, na = "-")
   })
 
+  ANOVA <- reactive({
+    dados <- dados()
+    req(input$coluna)
+    trat <- dados |> pull(input$trat) |> forcats::as_factor()
+    bloco <- dados |> pull(input$rep) |> forcats::as_factor()
+    y <- dados |> pull(input$coluna)
+    mod<-aov(y~trat+bloco)
+    xij<-predict(mod, newdata = dados$bloco<-as.factor(bloco))
+    y[is.na(y)] <- xij[is.na(y)]
+    mod<-aov(y~trat+bloco)
+    anova(mod)
+    # ANOVA=ExpDes.pt::dbc(trat, bloco, y, quali = TRUE, mcomp = "tukey")
+  })
+
   output$dados <- renderTable({
-    dados()
+    as_tibble(ANOVA())
   })
 
   observe({
@@ -120,7 +137,7 @@ server <- function(input, output, session){
       session,
       "trat",
       choices = colunas,
-      selected = "Tratamento"
+      selected = "NívelCálcio"
     )
   })
 
@@ -148,8 +165,43 @@ server <- function(input, output, session){
        session,
        "coluna",
        choices = colunas,
-       selected = "NívelCálcio"
-     )
+       selected = colunas[5]
+         )
+   })
+
+   output$ridges <- renderPlot({
+     req(input$coluna)
+     dados() |>
+       mutate(Trat = forcats::as_factor(.data[[input$trat]]),
+              Rep = forcats::as_factor(.data[[input$rep]])) |>
+       group_by(Trat,Rep) |>
+       summarise(media_var = mean(.data[[input$coluna]], na.rm=TRUE)) |>
+       ungroup() |>
+       mutate(
+          Trat = fct_reorder(Trat,
+                                     media_var, .fun = median, na.rm = TRUE)
+        ) |>
+        ggplot(aes(x = media_var, y = Trat, fill = Trat)) +
+        ggridges::geom_density_ridges(color = 'transparent', alpha = .6) +
+        scale_fill_viridis_d() +
+        theme_minimal() +
+        labs(
+          x = input$coluna,
+          y = input$trat
+        ) +
+        theme(
+          legend.position = 'none') +
+        geom_vline(xintercept = 4)
+   })
+
+   output$boxplot <- renderPlot({
+     req(input$coluna)
+     dados() |>
+       mutate(Trat = forcats::as_factor(.data[[input$trat]])) |>
+       ggplot(aes(x = Trat,
+                  y = .data[[input$coluna]],fill=Trat)) +
+       geom_boxplot() +
+       theme_minimal()
    })
 }
 
