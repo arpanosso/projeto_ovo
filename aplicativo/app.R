@@ -5,6 +5,7 @@ library(readxl)
 library(shiny)
 library(tidyr)
 library(ggridges)
+library(ggpubr)
 
 
 path <- "DADOS_CALCIO.xlsx"
@@ -111,11 +112,7 @@ ui <- dashboardPage(
           )
         )
       ),
-
-
 # UI - regressao linear -----------------------------------------------------
-
-
       tabItem(
         tabName = "regressao",
         fluidRow(
@@ -286,44 +283,33 @@ server <- function(input, output, session){
    })
 
 # Server - Regressao ------------------------------------------------------
-   lendo <- function(caminho, planilha){
-     caminho |> read_excel(sheet = planilha, na = "-") |>
-       mutate(D4 = ifelse(D4 =="x",NA,D4)) |>
-       select(NívelCálcio,Repetição,Altura,
-              AlturaAlbumen,
-              D1,D2,D3,D4,DiaOvo,Esp1,
-              Esp2,Esp3,Esp4,FFT_R,FREQ_MED,
-              Freq1,Freq2,Freq3,Freq4,
-              PesoCasca,PesoOvo)
-   }
 
    dados_temporais<-reactive({
      semanas <- excel_sheets(path = "DADOS_CALCIO.xlsx")
-
-
-
-   observe({
-     vars_x <- dados_temporais() |> select(-semanas) |>  names()
-
-     purrr::map_df(semanas,
-                   ~lendo("DADOS_CALCIO.xlsx",.x),
-                   .id = "semanas")
+     obj<-purrr::map_df(semanas,
+                        ~lendo("DADOS_CALCIO.xlsx",.x),
+                        .id = "semanas")
+     obj
    })
 
-     updateSelectInput(
-       session,
-       "var_x",
-       choices = vars_x,
-       selected = "FREQ_MED"
-     )
+     observe({
+       vars_x <- dados_temporais() |> select(-semanas) |>  names()
+       updateSelectInput(
+         session,
+         "var_x",
+         choices = vars_x,
+         selected = "FREQ_MED"
+       )
 
-     updateSelectInput(
-       session,
-       "var_y",
-       choices = vars_x,
-       selected = "FFT_R"
-     )
-   })
+       updateSelectInput(
+         session,
+         "var_y",
+         choices = vars_x,
+         selected = "FFT_R"
+       )
+     })
+
+
 
    output$dispersao <- renderPlot({
      req(input$var_x,input$var_y)
@@ -346,10 +332,10 @@ server <- function(input, output, session){
        ggplot(aes_string(x=input$var_x,y=input$var_y))+
        geom_point(aes(color=semanas),size=4)+
        geom_smooth(method = "lm") +
-       labs(title = paste0("R² = ",R2))+
-       theme_minimal()
-#       stat_regline_equation(aes(
- #        label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~")))
+       #labs(title = paste0("R² = ",R2))+
+       theme_minimal()+
+       stat_regline_equation(aes(
+        label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~")))
 
    })
 
