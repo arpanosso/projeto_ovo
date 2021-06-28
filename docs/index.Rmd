@@ -72,8 +72,10 @@ x<-seq(0,numRecs.AsspDataObj(au) - 1, 10) / rate.AsspDataObj(au)
 #confirmar esse -1, mas parece ok?
 length(x)
 y<-au$audio[c(TRUE, rep(FALSE,9))]
-length(y)
+y<-au$audio[,1]
 
+length(y)
+length(x)
 
 data.frame(x,y) %>% 
   ggplot(aes(x,y))+
@@ -148,7 +150,6 @@ plot(seq(0,numRecs.AsspDataObj(f0vals) - 1) / rate.AsspDataObj(f0vals) +
 
 ```{r}
 rmsana(files[1], outputDirectory = tempdir())
-
 ```
 
 ```{r}
@@ -166,5 +167,38 @@ rmsvals = read.AsspDataObj(rmsFilePaths[1])
 #      type='l',
 #      xlab='time (s)',
 #      ylab='RMS energy (dB)')
+```
+
+
+# Script Nelson
+```{r}
+Fs<-rate.AsspDataObj(au) # (sample rate - Hz): taxa de amostragem por seg.  
+t_incr<-1/Fs#incremento no tempo
+To<-startTime.AsspDataObj(au)#tempo inicial da 1a amostra
+Tf<-dur.AsspDataObj(au) # duração da gravação em ms 
+N<-numRecs.AsspDataObj(au) # T: total de ptos que são capturados. 
+t<-seq(To,Tf,t_incr);# discretização no tempo
+t<-t[-length(t)]
+length(t)
+length(y)
+
+nfft<-nextn(length(y),2);
+TDF<-fft(y,inverse=FALSE);#transfomada discreta de Fourier  
+fff<-TDF[1:(nfft/2)];#Freq máxima
+xfft<-seq(0,(nfft/2)-1/nfft)*Fs/N;# eixo das frequencias
+A<-Mod(fff);
+par(mfrow = c(2,1))
+plot(t,y, type="l", xlab="tempo(s)", ylab="Amplitude")
+plot(xfft,A,type="l",xlab="frequencia(Hz)",ylab="Amplitude")
+length(t)
+length(y)
+
+
+dB = 10*log10(A/1e-12)
+plot(xfft,dB,type="l",xlab="frequencia(Hz)",ylab="Amplitude")
+
+x<-seq(0,numRecs.AsspDataObj(au) - 1, 10) / rate.AsspDataObj(au)
+y<-au$audio[c(TRUE, rep(FALSE,9))]
+plot(y)
 ```
 

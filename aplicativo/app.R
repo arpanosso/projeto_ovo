@@ -2,9 +2,10 @@ library(shinydashboard)
 library(tidyverse)
 library(ggdendro)
 library(readxl)
-library(plotly)
 library(shiny)
+library(tidyr)
 library(ggridges)
+
 
 path <- "DADOS_CALCIO.xlsx"
 semanas <- excel_sheets(path = path)
@@ -16,7 +17,9 @@ ui <- dashboardPage(
       menuItem("Visualização",tabName = "vasualizacao",
                icon = icon("eye")),
       menuItem("Regressão",tabName = "regressao",
-               icon = icon("chart-line"))
+               icon = icon("chart-line")),
+      menuItem("Multivariada",tabName = "multivariada",
+               icon = icon("pagelines"))
     )
   ),
   body = dashboardBody(
@@ -83,23 +86,96 @@ ui <- dashboardPage(
                 )
               )
             )
-          ),
-          fluidRow(
-            column(
-              width = 12,
-              plotOutput("ridges"),
-              plotOutput("boxplot"),
-              tableOutput("dados")
-            )
+          )
+        ),
+        fluidRow(
+          column(
+            width = 12,
+            fluidRow(
+              box(
+                width = 6,
+                title = "Densidade",
+                solidHeader = TRUE,
+                status = "primary",
+                plotOutput("ridges")
+              ),
+              box(
+                width = 6,
+                title = "Boxplot",
+                solidHeader = TRUE,
+                status = "primary",
+                plotOutput("boxplot")
+              )
+            ),
+            tableOutput("dados")
           )
         )
       ),
+
+
+# UI - regressao linear -----------------------------------------------------
+
+
       tabItem(
-        tabName = "regressao"
+        tabName = "regressao",
+        fluidRow(
+          column(
+            width = 12,
+            h1("Regressão linear")
+          )
+        ),
+        hr(style = "border-top: 1px solid black;"),
+        br(),
+        fluidRow(
+          column(
+            width = 12,
+            fluidRow(
+              box(
+                width = 6,
+                title = "Seleção as variáveis",
+                solidHeader = TRUE,
+                status = "primary",
+                fluidRow(
+                  column(
+                    width = 6,
+                    selectInput(
+                      "var_x",
+                      "Selecione a variável X",
+                      choices = "",
+                      selected = ""
+                    )
+                  ),
+                  column(
+                    width = 6,
+                    selectInput(
+                      "var_y",
+                      "Selecione a variável Y",
+                      choices = "",
+                      selected = ""
+                    )
+                  ),
+                  column(
+                    width = 12,
+                    checkboxGroupInput(inputId = "filtro_semana",
+                                       label = "Selecione a semana",
+                                       choices = 1:9,
+                                       inline = TRUE,
+                                       selected = 1:9
+                                       )
+                  ),
+                  column(
+                    width=12,
+                    plotOutput("dispersao")
+                  )
+                )
+              )
+            )
+          )
+        )
       )
     )
   ),
-  title = "Projeto"
+title = "Projeto"
 )
 
 
@@ -198,11 +274,87 @@ server <- function(input, output, session){
      req(input$coluna)
      dados() |>
        mutate(Trat = forcats::as_factor(.data[[input$trat]])) |>
+       mutate(
+         Trat = fct_reorder(Trat,
+                            .data[[input$coluna]], .fun = median, na.rm = TRUE)
+       ) |>
        ggplot(aes(x = Trat,
                   y = .data[[input$coluna]],fill=Trat)) +
        geom_boxplot() +
+       scale_fill_viridis_d(alpha = .5) +
        theme_minimal()
    })
+
+# Server - Regressao ------------------------------------------------------
+   lendo <- function(caminho, planilha){
+     caminho |> read_excel(sheet = planilha, na = "-") |>
+       mutate(D4 = ifelse(D4 =="x",NA,D4)) |>
+       select(NívelCálcio,Repetição,Altura,
+              AlturaAlbumen,
+              D1,D2,D3,D4,DiaOvo,Esp1,
+              Esp2,Esp3,Esp4,FFT_R,FREQ_MED,
+              Freq1,Freq2,Freq3,Freq4,
+              PesoCasca,PesoOvo)
+   }
+
+   dados_temporais<-reactive({
+     semanas <- excel_sheets(path = "DADOS_CALCIO.xlsx")
+
+
+
+   observe({
+     vars_x <- dados_temporais() |> select(-semanas) |>  names()
+
+     purrr::map_df(semanas,
+                   ~lendo("DADOS_CALCIO.xlsx",.x),
+                   .id = "semanas")
+   })
+
+     updateSelectInput(
+       session,
+       "var_x",
+       choices = vars_x,
+       selected = "FREQ_MED"
+     )
+
+     updateSelectInput(
+       session,
+       "var_y",
+       choices = vars_x,
+       selected = "FFT_R"
+     )
+   })
+
+   output$dispersao <- renderPlot({
+     req(input$var_x,input$var_y)
+
+     x<-dados_temporais() |>
+       filter(semanas %in% input$filtro_semana) |>
+       pull(input$var_x)
+
+     y<-dados_temporais() |>
+       filter(semanas %in% input$filtro_semana) |>
+       pull(input$var_y)
+     mod <- lm(y~x)
+     ANOVA<-summary.lm(mod)
+     R2 <- round(ANOVA$r.squared,4)
+
+     dados_temporais() |>
+       filter(semanas %in% input$filtro_semana) |>
+       select(.data[[input$var_x]],.data[[input$var_y]],semanas) |>
+       drop_na() |>
+       ggplot(aes_string(x=input$var_x,y=input$var_y))+
+       geom_point(aes(color=semanas),size=4)+
+       geom_smooth(method = "lm") +
+       labs(title = paste0("R² = ",R2))+
+       theme_minimal()
+#       stat_regline_equation(aes(
+ #        label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~")))
+
+   })
+
 }
 
 shinyApp(ui, server)
+
+
