@@ -332,7 +332,7 @@ server <- function(input, output, session){
        ggplot(aes_string(x=input$var_x,y=input$var_y))+
        geom_point(aes(color=semanas),size=4)+
        geom_smooth(method = "lm") +
-       #labs(title = paste0("R² = ",R2))+
+       labs(title = paste0("R² = ",R2))+
        theme_minimal()+
        stat_regline_equation(aes(
         label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~")))
