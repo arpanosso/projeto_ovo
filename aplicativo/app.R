@@ -6,7 +6,7 @@ library(shiny)
 library(tidyr)
 library(ggridges)
 library(ggpubr)
-
+library(vegan)
 
 path <- "DADOS_CALCIO.xlsx"
 semanas <- excel_sheets(path = path)
@@ -165,8 +165,67 @@ ui <- dashboardPage(
                     plotOutput("dispersao")
                   )
                 )
+              ),
+              box(
+                width = 6,
+                title = "Seleção as variáveis",
+                solidHeader = TRUE,
+                status = "primary",
+                height = "600px",
+                fluidRow(
+                  column(
+                    width = 12,
+                    plotOutput("dispersao_wrap")
+                  )
+                )
               )
             )
+          )
+        )
+      ),
+
+# UI - multivariada -------------------------------------------------------
+      tabItem(
+        tabName = "multivariada",
+        fluidRow(
+          column(
+            width = 12,
+            h1("Análise Multivariada")
+          )
+        ),
+        hr(style = "border-top: 1px solid black;"),
+        br(),
+        fluidRow(
+          box(
+            width = 6,
+            title = "Seleção da variáveis",
+            solidHeader = TRUE,
+            status = "primary",
+            fluidRow(
+              column(
+                width = 6,
+                selectizeInput(
+                  inputId = "lista_multivaria",
+                  label = "Selecione as variáveis",
+                  choices = "",
+                  selected = "",
+                  multiple = TRUE,
+                  options = NULL
+                )
+              ),
+              column(
+                width = 6,
+                selectizeInput(
+                  inputId = "semana_multivaria",
+                  label = "Selecione as semanas",
+                  choices = c("TODAS",semanas),
+                  selected = semanas[1:2],
+                  multiple = TRUE,
+                  options = NULL
+                )
+              )
+            ),
+            plotOutput("dendrograma")
           )
         )
       )
@@ -314,18 +373,18 @@ server <- function(input, output, session){
    output$dispersao <- renderPlot({
      req(input$var_x,input$var_y)
 
-     x<-dados_temporais() |>
-       filter(semanas %in% input$filtro_semana) |>
-       pull(input$var_x)
+     # x<-dados_temporais() |>
+     #   filter(semanas %in% input$filtro_semana) |>
+     #   pull(input$var_x)
+     #
+     # y<-dados_temporais() |>
+     #   filter(semanas %in% input$filtro_semana) |>
+     #   pull(input$var_y)
+     # mod <- lm(y~x)
+     # ANOVA<-summary.lm(mod)
+     # R2 <- round(ANOVA$r.squared,4)
 
-     y<-dados_temporais() |>
-       filter(semanas %in% input$filtro_semana) |>
-       pull(input$var_y)
-     mod <- lm(y~x)
-     ANOVA<-summary.lm(mod)
-     R2 <- round(ANOVA$r.squared,4)
-
-     dados_temporais() |>
+    dados_temporais() |>
        filter(semanas %in% input$filtro_semana) |>
        select(.data[[input$var_x]],.data[[input$var_y]],semanas) |>
        drop_na() |>
@@ -336,7 +395,88 @@ server <- function(input, output, session){
        theme_minimal()+
        stat_regline_equation(aes(
         label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~")))
+   })
 
+   output$dispersao_wrap <- renderPlot({
+     dados_temporais() |>
+       select(.data[[input$var_x]],.data[[input$var_y]],semanas) |>
+       drop_na() |>
+       ggplot(aes_string(x=input$var_x,y=input$var_y))+
+       geom_point(aes(color=semanas),size=4)+
+       facet_wrap(~semanas) +
+       geom_smooth(method = "lm") +
+       theme_minimal()+
+       stat_regline_equation(aes(
+         label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~")))
+   },height = 540)
+
+   observe({
+     variaveis <- dados_temporais() |> names()
+     updateSelectizeInput(
+       session,
+       "lista_multivaria",
+       choices = variaveis[-c(1:4,10)],
+       selected = variaveis[6:10]
+     )
+   })
+
+# Server- multivariada ----------------------------------------------------
+
+   base_multivariada <- reactive({
+     req(input$lista_multivaria)
+
+     if(input$semana_multivaria[1] == "TODAS"){
+       dados_temporais() |>
+         select(input$lista_multivaria)
+     } else {
+       dados_temporais() |>
+         mutate(semanas = paste("Semana 0", semanas, sep="")) |>
+         filter(semanas %in% input$semana_multivaria) |>
+         select(input$lista_multivaria)
+     }
+   })
+
+   da <- reactive({
+     base_multivariada()
+   })
+
+   output$tabela_multivariada <- renderTable({
+
+     pca <- prcomp(da(), scale.=T)
+     mcor <- cor(da(), pca$x)
+     nomes_pcs <- colnames(mcor)
+     mcor <- t(mcor)
+     mcor <- as_tibble(mcor)
+     mcor$PC <- nomes_pcs
+
+     tab <- tibble(
+       Autovalor=pca$sdev^2,
+       Var_exp=Autovalor/sum(Autovalor),
+       Var_exp_acum=cumsum(Var_exp)*100,
+       mcor
+     ) |> relocate(PC)
+
+     tab
+   })
+
+   output$biplot<- renderPlot({
+     rotulos <- 1:nrow(da())
+     my_biplot(da(),
+               rotulos,"")
+   })
+
+   output$dendrograma<- renderPlot({
+     # browser()
+     rotulos <- 1:nrow(da())
+     da <- da()
+     da_pad<- decostand(da,
+                        method = "standardize",na.rm=TRUE)
+     da_pad_euc<-vegdist(da_pad,"euclidean")
+     da_pad_euc_ward<-hclust(da_pad_euc, method="ward.D")
+     # plot(da_pad_euc_ward,ylab="Distância Euclidiana",xlab="Acessos",
+     #      hang=-1,col="blue",las=1,cex=.6,labels = rotulos,lwd=1.5);box()
+     ggdendrogram(da_pad_euc_ward) +
+       labs(title = nrow(da()))
    })
 
 }

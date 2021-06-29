@@ -5,9 +5,9 @@ account: arpanosso
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4323063
-bundleId: 4766441
+bundleId: 4770182
 url: https://arpanosso.shinyapps.io/egg_shell_freq/
-when: 1624919534.91782
-lastSyncTime: 1624919534.91782
+when: 1624994996.34505
+lastSyncTime: 1624994996.34505
 asMultiple: FALSE
 asStatic: FALSE
