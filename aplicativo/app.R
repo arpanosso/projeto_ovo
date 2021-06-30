@@ -153,12 +153,13 @@ ui <- dashboardPage(
                   ),
                   column(
                     width = 12,
-                    checkboxGroupInput(inputId = "filtro_semana",
-                                       label = "Selecione a semana",
-                                       choices = 1:9,
-                                       inline = TRUE,
-                                       selected = 1:9
-                                       )
+                    checkboxGroupInput(
+                      inputId = "filtro_semana",
+                      label = "Selecione a semana",
+                      choices = 1:9,
+                      inline = TRUE,
+                      selected = 1:9
+                    )
                   ),
                   column(
                     width=12,
@@ -168,11 +169,21 @@ ui <- dashboardPage(
               ),
               box(
                 width = 6,
-                title = "Seleção as variáveis",
+                title = "Seleção de variáveis",
                 solidHeader = TRUE,
                 status = "primary",
                 height = "600px",
                 fluidRow(
+                  column(
+                    width = 12,
+                    checkboxGroupInput(
+                      inputId = "filtro_calcio",
+                      label = "Selecione o Tratamento",
+                      choices = 1:7,
+                      selected = 1:7,
+                      inline=TRUE
+                    )
+                  ),
                   column(
                     width = 12,
                     plotOutput("dispersao_wrap")
@@ -233,8 +244,6 @@ ui <- dashboardPage(
   ),
 title = "Projeto"
 )
-
-
 
 server <- function(input, output, session){
   # Server - Visualização ---------------------------------------------------
@@ -368,30 +377,17 @@ server <- function(input, output, session){
        )
      })
 
-
-
-   output$dispersao <- renderPlot({
+    output$dispersao <- renderPlot({
      req(input$var_x,input$var_y)
 
-     # x<-dados_temporais() |>
-     #   filter(semanas %in% input$filtro_semana) |>
-     #   pull(input$var_x)
-     #
-     # y<-dados_temporais() |>
-     #   filter(semanas %in% input$filtro_semana) |>
-     #   pull(input$var_y)
-     # mod <- lm(y~x)
-     # ANOVA<-summary.lm(mod)
-     # R2 <- round(ANOVA$r.squared,4)
-
     dados_temporais() |>
-       filter(semanas %in% input$filtro_semana) |>
+      filter(semanas %in% input$filtro_semana) |>
+      filter(Tratamento %in% as.numeric(input$filtro_calcio)) |>
        select(.data[[input$var_x]],.data[[input$var_y]],semanas) |>
        drop_na() |>
        ggplot(aes_string(x=input$var_x,y=input$var_y))+
        geom_point(aes(color=semanas),size=4)+
        geom_smooth(method = "lm") +
-       # labs(title = paste0("R² = ",R2))+
        theme_minimal()+
        stat_regline_equation(aes(
         label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~")))
@@ -466,15 +462,12 @@ server <- function(input, output, session){
    })
 
    output$dendrograma<- renderPlot({
-     # browser()
      rotulos <- 1:nrow(da())
      da <- da()
      da_pad<- decostand(da,
                         method = "standardize",na.rm=TRUE)
      da_pad_euc<-vegdist(da_pad,"euclidean")
      da_pad_euc_ward<-hclust(da_pad_euc, method="ward.D")
-     # plot(da_pad_euc_ward,ylab="Distância Euclidiana",xlab="Acessos",
-     #      hang=-1,col="blue",las=1,cex=.6,labels = rotulos,lwd=1.5);box()
      ggdendrogram(da_pad_euc_ward) +
        labs(title = nrow(da()))
    })
