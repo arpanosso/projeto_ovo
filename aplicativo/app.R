@@ -7,6 +7,7 @@ library(tidyr)
 library(ggridges)
 library(ggpubr)
 library(vegan)
+library(plotly)
 library(forcats)
 
 path <- "DADOS_CALCIO.xlsx"
@@ -264,7 +265,7 @@ ui <- dashboardPage(
               ),
               column(
                 width = 6,
-                plotOutput("dendrograma")
+                plotlyOutput("dendrograma")
               )
             )
           )
@@ -510,7 +511,7 @@ server <- function(input, output, session){
                rotulos,"")
    })
 
-   output$dendrograma<- renderPlot({
+   output$dendrograma<- renderPlotly({
      rotulos <- (base_multivariada() |>
                    drop_na() |>
                    pull(Tratamento))
