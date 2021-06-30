@@ -12,9 +12,9 @@ my_biplot <- function(da,rotulos,titulo){
     x = pc1V,
     y = pc2V,
     label = names(da))
-  
+
   p<-bip %>% ggplot(aes(x=pc1c,y=pc2c))+
-    geom_point(aes(color = Agrupamento)) + 
+    geom_point(aes(color = Agrupamento)) + #
     theme_minimal() +
     geom_vline(aes(xintercept=0),
                color="black", size=1) +

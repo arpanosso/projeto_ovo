@@ -7,6 +7,7 @@ library(tidyr)
 library(ggridges)
 library(ggpubr)
 library(vegan)
+library(forcats)
 
 path <- "DADOS_CALCIO.xlsx"
 semanas <- excel_sheets(path = path)
@@ -152,13 +153,23 @@ ui <- dashboardPage(
                     )
                   ),
                   column(
-                    width = 12,
+                    width = 6,
                     checkboxGroupInput(
                       inputId = "filtro_semana",
                       label = "Selecione a semana",
                       choices = 1:9,
                       inline = TRUE,
                       selected = 1:9
+                    )
+                  ),
+                  column(
+                    width = 6,
+                    checkboxGroupInput(
+                      inputId = "filtro_calcio",
+                      label = "Tratamento",
+                      choices = 1:7,
+                      selected = 1:7,
+                      inline=TRUE
                     )
                   ),
                   column(
@@ -169,24 +180,28 @@ ui <- dashboardPage(
               ),
               box(
                 width = 6,
-                title = "Seleção de variáveis",
+                title = "Agrupamento por Semana",
                 solidHeader = TRUE,
                 status = "primary",
                 height = "600px",
                 fluidRow(
                   column(
                     width = 12,
-                    checkboxGroupInput(
-                      inputId = "filtro_calcio",
-                      label = "Selecione o Tratamento",
-                      choices = 1:7,
-                      selected = 1:7,
-                      inline=TRUE
-                    )
-                  ),
+                    plotOutput("dispersao_wrap")
+                  )
+                )
+              )
+            ),
+            fluidRow(
+              box(
+                width = 12,
+                title = "Agrupamento por Tratamento",
+                solidHeader = TRUE,
+                status = "primary",
+                fluidRow(
                   column(
                     width = 12,
-                    plotOutput("dispersao_wrap")
+                    plotOutput("dispersao_wrap_trat")
                   )
                 )
               )
@@ -208,7 +223,7 @@ ui <- dashboardPage(
         br(),
         fluidRow(
           box(
-            width = 6,
+            width = 12,
             title = "Seleção da variáveis",
             solidHeader = TRUE,
             status = "primary",
@@ -236,7 +251,22 @@ ui <- dashboardPage(
                 )
               )
             ),
-            plotOutput("dendrograma")
+            fluidRow(
+              column(
+                width = 12,
+                tableOutput("tabela_multivariada")
+              )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                plotOutput("biplot")
+              ),
+              column(
+                width = 6,
+                plotOutput("dendrograma")
+              )
+            )
           )
         )
       )
@@ -246,7 +276,7 @@ title = "Projeto"
 )
 
 server <- function(input, output, session){
-  # Server - Visualização ---------------------------------------------------
+# Server - Visualização ---------------------------------------------------
   dados<-reactive({
     req(input$semana)
     "DADOS_CALCIO.xlsx" |>
@@ -394,12 +424,30 @@ server <- function(input, output, session){
    })
 
    output$dispersao_wrap <- renderPlot({
+     req(input$var_x)
      dados_temporais() |>
        select(.data[[input$var_x]],.data[[input$var_y]],semanas) |>
        drop_na() |>
        ggplot(aes_string(x=input$var_x,y=input$var_y))+
        geom_point(aes(color=semanas),size=4)+
        facet_wrap(~semanas) +
+       geom_smooth(method = "lm") +
+       theme_minimal()+
+       stat_regline_equation(aes(
+         label =  paste(..eq.label.., ..rr.label.., sep = "*plain(\",\")~~")))
+   },height = 550)
+
+
+   output$dispersao_wrap_trat <- renderPlot({
+     req(input$var_x)
+     #browser()
+     dados_temporais() |>
+       select(.data[[input$var_x]],.data[[input$var_y]],Tratamento) |>
+       drop_na() |>
+       mutate(Tratamento = as_factor(Tratamento)) |>
+       ggplot(aes_string(x=input$var_x,y=input$var_y))+
+       geom_point(aes(color=Tratamento),size=4)+
+       facet_wrap(~Tratamento) +
        geom_smooth(method = "lm") +
        theme_minimal()+
        stat_regline_equation(aes(
@@ -416,62 +464,66 @@ server <- function(input, output, session){
      )
    })
 
-# Server- multivariada ----------------------------------------------------
+# Server-multivariada ----------------------------------------------------
 
    base_multivariada <- reactive({
      req(input$lista_multivaria)
 
-     if(input$semana_multivaria[1] == "TODAS"){
+     if(sum(input$semana_multivaria == "TODAS") == 1){
        dados_temporais() |>
-         select(input$lista_multivaria)
+         select(input$lista_multivaria, Tratamento)
      } else {
        dados_temporais() |>
          mutate(semanas = paste("Semana 0", semanas, sep="")) |>
          filter(semanas %in% input$semana_multivaria) |>
-         select(input$lista_multivaria)
+         select(input$lista_multivaria, Tratamento)
      }
-   })
-
-   da <- reactive({
-     base_multivariada()
    })
 
    output$tabela_multivariada <- renderTable({
 
-     pca <- prcomp(da(), scale.=T)
-     mcor <- cor(da(), pca$x)
+     da <- base_multivariada() |>
+       drop_na()
+
+     pca <- prcomp(da, scale.=T)
+     mcor <- cor(da, pca$x)
      nomes_pcs <- colnames(mcor)
      mcor <- t(mcor)
      mcor <- as_tibble(mcor)
      mcor$PC <- nomes_pcs
-
      tab <- tibble(
        Autovalor=pca$sdev^2,
        Var_exp=Autovalor/sum(Autovalor),
        Var_exp_acum=cumsum(Var_exp)*100,
        mcor
      ) |> relocate(PC)
-
      tab
    })
 
    output$biplot<- renderPlot({
-     rotulos <- 1:nrow(da())
-     my_biplot(da(),
+     rotulos <- (base_multivariada() |>
+                         drop_na() |>
+                         pull(Tratamento))
+     my_biplot(base_multivariada() |>
+                 drop_na() |>
+                 select(-Tratamento),
                rotulos,"")
    })
 
    output$dendrograma<- renderPlot({
-     rotulos <- 1:nrow(da())
-     da <- da()
+     rotulos <- (base_multivariada() |>
+                   drop_na() |>
+                   pull(Tratamento))
+     da <- base_multivariada() |>
+       drop_na() |>
+       select(-Tratamento)
+     rownames(da) <- paste0("T",rotulos,sep="_",1:length(rotulos))
      da_pad<- decostand(da,
                         method = "standardize",na.rm=TRUE)
      da_pad_euc<-vegdist(da_pad,"euclidean")
      da_pad_euc_ward<-hclust(da_pad_euc, method="ward.D")
-     ggdendrogram(da_pad_euc_ward) +
-       labs(title = nrow(da()))
+     ggdendrogram(da_pad_euc_ward)
    })
-
 }
 
 shinyApp(ui, server)
