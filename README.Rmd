@@ -11,25 +11,214 @@ knitr::opts_chunk$set(
 )
 ```
 
-# projeto_ovo
+# Análise qualidade da casca - mestrado João
 
-<!-- badges: start -->
-<!-- badges: end -->
-
-The goal of projeto_ovo is to ...
-
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
-
-```{r cars}
-summary(cars)
+## Carregando os pacotes no R
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(skimr)
+library(GGally)
+library(ExpDes.pt)
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this. You could also use GitHub Actions to re-render `README.Rmd` every time you push. An example workflow can be found here: <https://github.com/r-lib/actions/tree/master/examples>.
+## Pré-tratamento dos dados
+-carregando o banco de dados;
+-mudando os nomes das colunas;
 
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados<- readxl::read_excel("data-raw/Dados Mestrado João.xlsx") |>
+  janitor::clean_names()
+dplyr::glimpse(dados)
 ```
 
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub.
+
+- seleção das variáveis para a análise
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados <- dados |>
+  select(data,
+         repeticao,
+         linhagem,
+         nivel_de_fosforo_disp,
+         resistencia_kgf,
+         frequencia_ressonante,
+         shape_index,
+         peso_g,
+         altura_de_albumen,
+         uh,
+         espessura_mm
+         ) #|> 
+  # mutate(log_frequencia_ressonante = log(frequencia_ressonante))
+```
+
+- lidando com os valores perdidos de `resistencia_kgf`;
+- definindo as datas da amostragem.
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados <-dados |>
+  dplyr::mutate(
+    resistencia_kgf = ifelse(resistencia_kgf == "Perdi", NA, resistencia_kgf),
+    resistencia_kgf = as.numeric(resistencia_kgf),
+    dia=round(as.numeric(difftime(data,"2021-05-13",units = "days"))),
+    dia = dplyr::case_when(
+      dia < 3 ~ 1,
+      dia < 20 ~15,
+      dia < 30 ~ 30,
+      dia < 45 ~ 45,
+      dia < 60 ~ 60
+    )
+  )
+dplyr::glimpse(dados)
+```
+
+
+## Análise de regressão linear 
+
+A análise foi realizada independete dos tratamentos para descrever o comportamento das variáveis ao longo do dias por linhagem.
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+parametros <- names(dados)[5:(length(dados)-1)]
+
+for(i in 1:length(parametros)){
+  da <- dados |>
+    select(dia, linhagem, parametros[i]) 
+  names(da) <- c("dia","linhagem","y")
+  plot<-da |> 
+    dplyr::group_by(dia, linhagem) |>
+    dplyr::summarise(re=mean(y, na.rm=TRUE)) |>
+    ggplot(aes(x=dia, y=re, color=linhagem)) +
+    geom_point() +
+    geom_smooth(method = "lm")+
+    labs(x="Dias",y=parametros[i])
+  print(plot)
+
+  tab <- da |>
+    dplyr::group_by(dia,linhagem) |>
+    dplyr::summarise(y=mean(y, na.rm=TRUE))
+  
+  mod <- lm(y~dia + linhagem, data=tab)
+  print(summary.lm(mod))
+  plot(mod)
+}
+```
+
+## Estatística descritiva do banco de dados
+ - resumo estatístico para todas as variáveios do banco de dados
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+skim(dados)
+```
+## Gráfico boxplot
+ - Análise para todas as variáveis do banco de dados, por dia.
+ 
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+for(i in 1:length(parametros)){
+  da <- dados |>
+    select(dia, linhagem, nivel_de_fosforo_disp, parametros[i]) 
+  names(da) <- c("dia","linhagem","nivel_de_fosforo_disp","y")
+  plot <- da |>
+    ggplot(aes(x = as.factor(nivel_de_fosforo_disp), y = y, fill=as.factor(dia))) +
+    geom_boxplot() +
+    facet_wrap(~dia, nrow=5) +
+    labs(x="Nível de Fósforo disponível (%)", fill="Dias",y=parametros[i])
+  print(plot)
+}
+```
+
+ ### Independent do dia
+ 
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+for(i in 1:length(parametros)){
+  da <- dados |>
+    select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
+  names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
+  plot <- da |> 
+    group_by(nivel_de_fosforo_disp, linhagem, repeticao) |>
+    summarise(re = mean(y, na.rm=TRUE)) |>
+    ggplot(aes(x = as.factor(nivel_de_fosforo_disp), y = re)) +
+    geom_boxplot(fill="lightgray") +
+    theme_bw() +
+    labs(x="Nível de Fósforo disponível (%)",
+         y = parametros[i])
+  print(plot)
+}
+```
+
+## Matriz de correlação para linhagem **DEKALB**
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados  |>
+  filter(linhagem == "Dekalb") |>
+  select(resistencia_kgf:espessura_mm)  |>
+  cor(use = "p")  |>
+  corrplot::corrplot()
+```
+
+
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados |>
+  filter(linhagem == "Dekalb") |>
+  select(resistencia_kgf:espessura_mm) |>
+  ggpairs()
+```
+
+## Matriz de correlação para linhagem **H&N**
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados  |>
+  filter(linhagem == "H&N") |>
+  select(resistencia_kgf:espessura_mm)  |>
+  cor(use = "p")  |>
+  corrplot::corrplot()
+```
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados |>
+  filter(linhagem == "H&N") |>
+  select(resistencia_kgf:espessura_mm) |>
+  ggpairs()
+```
+
+
+## Análise de variância
+
+```{r}
+for(i in 1:length(parametros)){
+  da <- dados |>
+    select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
+  names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
+  
+  da<- da |> 
+    group_by(repeticao, linhagem, nivel_de_fosforo_disp) |> 
+    summarise(y = mean(y, na.rm=TRUE))
+  linhagem<-da$linhagem
+  nivel_de_fosforo <- da$nivel_de_fosforo_disp
+  y <- da$y
+  print("-------------------------------------------------")
+  print(paste0("Variável: ",parametros[i]))
+  print("-------------------------------------------------")
+  fat2.dic(linhagem,nivel_de_fosforo,y,quali = c(TRUE, FALSE), mcomp = "tukey",
+           fac.names = c("Linhagem","Fosforo"))
+}
+```
+ 
+ 
+## Adicionando o dia na análise (provisória)
+
+```{r}
+for(i in 1:length(parametros)){
+  da <- dados |>
+    select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
+  names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
+  
+  da<- da |> 
+    group_by(dia, repeticao, linhagem, nivel_de_fosforo_disp) |> 
+    summarise(y = mean(y, na.rm=TRUE))
+  linhagem<-da$linhagem
+  nivel_de_fosforo <- da$nivel_de_fosforo_disp
+  y <- da$y
+  dia <- da$dia
+  print("-------------------------------------------------")
+  print(paste0("Variável: ",parametros[i]))
+  print("-------------------------------------------------")
+  fat3.dic(dia, linhagem,nivel_de_fosforo,y,quali = c(TRUE, TRUE, FALSE), mcomp = "tukey",
+           fac.names = c("Dia", "Linhagem","Fosforo"))
+}
+```
+
