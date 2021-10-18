@@ -46,9 +46,22 @@ dplyr::glimpse(dados)
 #> $ indice_gema           <dbl> 0.380, 0.410, 0.400, 0.384, 0.406, 0.352, 0.433,~
 #> $ peso_casca            <dbl> 6.10, 5.99, 6.45, 5.49, 6.63, 6.77, 5.44, 6.59, ~
 #> $ percent_casca         <dbl> 0.09200603, 0.09315708, 0.09655689, 0.09000000, ~
+dados <- dados |> 
+  mutate(
+    class_peso = case_when(
+      peso_g < 53 ~ "pequeno",
+      peso_g < 63 ~ "medio",
+      peso_g < 73 ~ "grande",
+      TRUE ~ "extra_grande"
+    )
+  )
+table(dados$class_peso)
+#> 
+#> extra_grande       grande        medio      pequeno 
+#>           29          673          698           15
 ```
 
--   seleção das variáveis para a análise
+-   seleção das variáveis para a análise.
 
 ``` r
 dados <- dados |>
@@ -56,6 +69,7 @@ dados <- dados |>
          repeticao,
          linhagem,
          nivel_de_fosforo_disp,
+         class_peso,
          resistencia_kgf,
          frequencia_ressonante,
          shape_index,
@@ -86,11 +100,12 @@ dados <-dados |>
   )
 dplyr::glimpse(dados)
 #> Rows: 1,415
-#> Columns: 12
+#> Columns: 13
 #> $ data                  <dttm> 2021-05-14, 2021-05-14, 2021-05-14, 2021-05-14,~
 #> $ repeticao             <dbl> 1, 1, 3, 3, 3, 5, 5, 5, 7, 7, 7, 8, 8, 8, 10, 10~
 #> $ linhagem              <chr> "H&N", "H&N", "H&N", "H&N", "H&N", "H&N", "H&N",~
 #> $ nivel_de_fosforo_disp <dbl> 0.391, 0.391, 0.391, 0.391, 0.391, 0.391, 0.391,~
+#> $ class_peso            <chr> "grande", "grande", "grande", "medio", "grande",~
 #> $ resistencia_kgf       <dbl> 3.40, 3.56, 5.22, 4.23, 4.07, 5.02, 3.32, 4.97, ~
 #> $ frequencia_ressonante <dbl> 4679, 5560, 5568, 5087, 6197, 5222, 5653, 4870, ~
 #> $ shape_index           <dbl> 75.09262, 72.15447, 76.36519, 75.11911, 75.18898~
@@ -107,19 +122,20 @@ A análise foi realizada independete dos tratamentos para descrever o
 comportamento das variáveis ao longo do dias por linhagem.
 
 ``` r
-parametros <- names(dados)[5:(length(dados)-1)]
+parametros <- names(dados)[6:(length(dados)-1)]
 
 for(i in 1:length(parametros)){
   da <- dados |>
-    select(dia, linhagem, parametros[i]) 
-  names(da) <- c("dia","linhagem","y")
+    select(dia, linhagem, class_peso, parametros[i]) 
+  names(da) <- c("dia","linhagem","class_peso","y")
   plot<-da |> 
-    dplyr::group_by(dia, linhagem) |>
+    dplyr::group_by(dia, linhagem, class_peso) |>
     dplyr::summarise(re=mean(y, na.rm=TRUE)) |>
     ggplot(aes(x=dia, y=re, color=linhagem)) +
     geom_point() +
     geom_smooth(method = "lm")+
-    labs(x="Dias",y=parametros[i])
+    labs(x="Dias",y=parametros[i]) #+
+    # facet_wrap(~class_peso)
   print(plot)
 
   tab <- da |>
@@ -300,10 +316,10 @@ skim(dados)
 |:-------------------------------------------------|:------|
 | Name                                             | dados |
 | Number of rows                                   | 1415  |
-| Number of columns                                | 12    |
+| Number of columns                                | 13    |
 | \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_   |       |
 | Column type frequency:                           |       |
-| character                                        | 1     |
+| character                                        | 2     |
 | numeric                                          | 10    |
 | POSIXct                                          | 1     |
 | \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ |       |
@@ -316,6 +332,7 @@ Data summary
 | skim\_variable | n\_missing | complete\_rate | min | max | empty | n\_unique | whitespace |
 |:---------------|-----------:|---------------:|----:|----:|------:|----------:|-----------:|
 | linhagem       |          0 |              1 |   3 |   6 |     0 |         2 |          0 |
+| class\_peso    |          0 |              1 |   5 |  12 |     0 |         4 |          0 |
 
 **Variable type: numeric**
 
@@ -338,9 +355,9 @@ Data summary
 |:---------------|-----------:|---------------:|:-----------|:-----------|:-----------|----------:|
 | data           |          0 |              1 | 2021-05-14 | 2021-07-09 | 2021-06-10 |        11 |
 
-## Gráfico boxplot
+## Gráfico de linhas
 
--   Análise para todas as variáveis do banco de dados, por dia.
+-   Análise para todas as variáveis do banco de dados, por nível de `P`.
 
 ``` r
 for(i in 1:length(parametros)){
@@ -348,10 +365,12 @@ for(i in 1:length(parametros)){
     select(dia, linhagem, nivel_de_fosforo_disp, parametros[i]) 
   names(da) <- c("dia","linhagem","nivel_de_fosforo_disp","y")
   plot <- da |>
-    ggplot(aes(x = as.factor(nivel_de_fosforo_disp), y = y, fill=as.factor(dia))) +
-    geom_boxplot() +
-    facet_wrap(~dia, nrow=5) +
-    labs(x="Nível de Fósforo disponível (%)", fill="Dias",y=parametros[i])
+    group_by(dia, nivel_de_fosforo_disp) |> 
+    drop_na() |> 
+    mutate( y = mean(y), na.rm=TRUE) |> 
+    ggplot(aes(x = dia, y = y, color=as.factor(nivel_de_fosforo_disp))) +
+    geom_line() +
+    labs(color="Nível de Fósforo disponível (%)", x="Dias",y=parametros[i])
   print(plot)
 }
 ```
@@ -382,44 +401,77 @@ for(i in 1:length(parametros)){
 ## Matriz de correlação para linhagem **DEKALB**
 
 ``` r
-dados  |>
-  filter(linhagem == "Dekalb") |>
-  select(resistencia_kgf:espessura_mm)  |>
-  cor(use = "p")  |>
-  corrplot::corrplot()
+classes<-c("medio", "grande")
+for(i in 1:2){
+  dados  |>
+    filter(linhagem == "Dekalb", class_peso == classes[i]) |>
+    drop_na() |> 
+    select(resistencia_kgf:espessura_mm)  |>
+    cor(use = "p")  |>
+    corrplot::corrplot()
+}
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->
+
+### Classe peso do ovo = **MEDIO**
 
 ``` r
 dados |>
-  filter(linhagem == "Dekalb") |>
+  filter(linhagem == "Dekalb", class_peso =="medio") |>
   select(resistencia_kgf:espessura_mm) |>
   ggpairs()
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
-## Matriz de correlação para linhagem **H&N**
-
-``` r
-dados  |>
-  filter(linhagem == "H&N") |>
-  select(resistencia_kgf:espessura_mm)  |>
-  cor(use = "p")  |>
-  corrplot::corrplot()
-```
-
-![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+### Classe peso do ovo = **GRANDE**
 
 ``` r
 dados |>
-  filter(linhagem == "H&N") |>
+  filter(linhagem == "Dekalb", class_peso =="grande") |>
   select(resistencia_kgf:espessura_mm) |>
   ggpairs()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+
+## Matriz de correlação para linhagem **H&N**
+
+``` r
+for(i in 1:2){
+  dados  |>
+    filter(linhagem == "H&N", class_peso == classes[i]) |>
+    drop_na() |> 
+    select(resistencia_kgf:espessura_mm)  |>
+    cor(use = "p")  |>
+    corrplot::corrplot()
+}
+```
+
+![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->
+
+### Classe peso do ovo = **MEDIO**
+
+``` r
+dados |>
+  filter(linhagem == "H&N", class_peso =="medio") |>
+  select(resistencia_kgf:espessura_mm) |>
+  ggpairs()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+### Classe peso do ovo = **GRANDE**
+
+``` r
+dados |>
+  filter(linhagem == "H&N", class_peso =="grande") |>
+  select(resistencia_kgf:espessura_mm) |>
+  ggpairs()
+```
+
+![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ## Análise de variância
 
@@ -454,12 +506,12 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL     SQ QM     Fc   Pr>Fc
-#> Linhagem          1 0.2411  5 3.3388 0.07126
-#> Fosforo           5 0.3081  2 0.8533 0.51614
-#> Linhagem*Fosforo  5 0.7906  4 2.1896 0.06305
-#> Residuo          83 5.9936  3               
-#> Total            94 7.3334  1               
+#>                  GL     SQ       QM     Fc   Pr>Fc
+#> Linhagem          1 0.2411 0.241101 3.3388 0.07126
+#> Fosforo           5 0.3081 0.061617 0.8533 0.51614
+#> Linhagem*Fosforo  5 0.7906 0.158115 2.1896 0.06305
+#> Residuo          83 5.9936 0.072212               
+#> Total            94 7.3334                        
 #> ------------------------------------------------------------------------
 #> CV = 7.4 %
 #> 
@@ -503,12 +555,12 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL      SQ QM      Fc   Pr>Fc
-#> Linhagem          1   10493  2 0.27737 0.59984
-#> Fosforo           5  409289  5 2.16387 0.06589
-#> Linhagem*Fosforo  5   66699  3 0.35263 0.87920
-#> Residuo          83 3139831  4                
-#> Total            94 3626311  1                
+#>                  GL      SQ    QM      Fc   Pr>Fc
+#> Linhagem          1   10493 10493 0.27737 0.59984
+#> Fosforo           5  409289 81858 2.16387 0.06589
+#> Linhagem*Fosforo  5   66699 13340 0.35263 0.87920
+#> Residuo          83 3139831 37829                
+#> Total            94 3626311                      
 #> ------------------------------------------------------------------------
 #> CV = 3.62 %
 #> 
@@ -552,12 +604,12 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL      SQ QM     Fc   Pr>Fc
-#> Linhagem          1  35.549  5 32.869 0.00000
-#> Fosforo           5   6.002  3  1.110 0.36149
-#> Linhagem*Fosforo  5  15.383  4  2.845 0.02023
-#> Residuo          83  89.768  2               
-#> Total            94 146.703  1               
+#>                  GL      SQ     QM     Fc   Pr>Fc
+#> Linhagem          1  35.549 35.549 32.869 0.00000
+#> Fosforo           5   6.002  1.200  1.110 0.36149
+#> Linhagem*Fosforo  5  15.383  3.077  2.845 0.02023
+#> Residuo          83  89.768  1.082               
+#> Total            94 146.703                      
 #> ------------------------------------------------------------------------
 #> CV = 1.39 %
 #> 
@@ -579,14 +631,14 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #>                        GL        SQ       QM      Fc  Pr.Fc
 #> Fosforo                 5   6.00214  1.20043  1.1099 0.3615
-#> Linhagem:Fosforo 0.105  1  15.74516 15.74516  14.558  3e-04
-#> Linhagem:Fosforo 0.2    1  14.17020 14.17020 13.1018  5e-04
-#> Linhagem:Fosforo 0.391  1  16.28336 16.28336 15.0556  2e-04
+#> Linhagem:Fosforo 0.105  1  15.74516 15.74516 14.5580 0.0003
+#> Linhagem:Fosforo 0.2    1  14.17020 14.17020 13.1018 0.0005
+#> Linhagem:Fosforo 0.391  1  16.28336 16.28336 15.0556 0.0002
 #> Linhagem:Fosforo 0.438  1   3.02565  3.02565  2.7975 0.0982
 #> Linhagem:Fosforo 0.454  1   0.02176  0.02176  0.0201 0.8876
 #> Linhagem:Fosforo 0.466  1   1.69752  1.69752  1.5695 0.2138
-#> Residuo                83  89.76848  1.08155               
-#> Total                  94 146.70305  1.56067               
+#> Residuo                83  89.76848  1.08155      NA     NA
+#> Total                  94 146.70305  1.56067      NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -625,9 +677,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 75.80501
-#> 2      H 74.93529
+#>     Niveis     Medias
+#> 1   Dekalb   75.80501
+#> 2        H   74.93529
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -635,9 +687,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 75.33716
-#> 2      H 75.41091
+#>     Niveis     Medias
+#> 1   Dekalb   75.33716
+#> 2        H   75.41091
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -645,9 +697,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 75.23353
-#> 2      H 74.58208
+#>     Niveis     Medias
+#> 1   Dekalb   75.23353
+#> 2        H   74.58208
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -658,11 +710,11 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                         GL        SQ       QM      Fc  Pr.Fc
-#> Linhagem                 1  35.54946 35.54946 32.8691      0
+#> Linhagem                 1  35.54946 35.54946 32.8691 0.0000
 #> Fosforo:Linhagem Dekalb  5   5.50040  1.10008  1.0171 0.4129
 #> Fosforo:Linhagem H&N     5  15.88471  3.17694  2.9374 0.0172
-#> Residuo                 83  89.76848  1.08155               
-#> Total                   94 146.70305  1.56067               
+#> Residuo                 83  89.76848  1.08155      NA     NA
+#> Total                   94 146.70305  1.56067      NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -671,13 +723,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 76.04470
-#> 2    0.2 75.60452
-#> 3  0.391 76.17795
-#> 4  0.438 75.80501
-#> 5  0.454 75.33716
-#> 6  0.466 75.23353
+#>     Niveis     Medias
+#> 1    0.105   76.04470
+#> 2      0.2   75.60452
+#> 3    0.391   76.17795
+#> 4    0.438   75.80501
+#> 5    0.454   75.33716
+#> 6    0.466   75.23353
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -779,12 +831,12 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL     SQ QM     Fc    Pr>Fc
-#> Linhagem          1 150.71  2 60.085 0.000000
-#> Fosforo           5  45.39  5  3.619 0.005193
-#> Linhagem*Fosforo  5  29.81  4  2.377 0.045678
-#> Residuo          83 208.18  3                
-#> Total            94 434.08  1                
+#>                  GL     SQ      QM     Fc    Pr>Fc
+#> Linhagem          1 150.71 150.706 60.085 0.000000
+#> Fosforo           5  45.39   9.078  3.619 0.005193
+#> Linhagem*Fosforo  5  29.81   5.962  2.377 0.045678
+#> Residuo          83 208.18   2.508                
+#> Total            94 434.08                        
 #> ------------------------------------------------------------------------
 #> CV = 2.51 %
 #> 
@@ -807,13 +859,13 @@ for(i in 1:length(parametros)){
 #>                        GL        SQ       QM      Fc  Pr.Fc
 #> Fosforo                 5  45.38908  9.07782  3.6193 0.0052
 #> Linhagem:Fosforo 0.105  1  17.17819 17.17819  6.8488 0.0105
-#> Linhagem:Fosforo 0.2    1  37.26018 37.26018 14.8553  2e-04
+#> Linhagem:Fosforo 0.2    1  37.26018 37.26018 14.8553 0.0002
 #> Linhagem:Fosforo 0.391  1  10.43937 10.43937  4.1621 0.0445
-#> Linhagem:Fosforo 0.438  1  82.11380 82.11380 32.7381      0
-#> Linhagem:Fosforo 0.454  1   4.14365  4.14365   1.652 0.2023
+#> Linhagem:Fosforo 0.438  1  82.11380 82.11380 32.7381 0.0000
+#> Linhagem:Fosforo 0.454  1   4.14365  4.14365  1.6520 0.2023
 #> Linhagem:Fosforo 0.466  1  26.24123 26.24123 10.4622 0.0018
-#> Residuo                83 208.18062  2.50820               
-#> Total                  94 434.08309  4.61791               
+#> Residuo                83 208.18062  2.50820      NA     NA
+#> Total                  94 434.08309  4.61791      NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -862,9 +914,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 62.12833
-#> 2      H 63.14613
+#>     Niveis     Medias
+#> 1   Dekalb   62.12833
+#> 2        H   63.14613
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -885,11 +937,11 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                         GL        SQ        QM      Fc  Pr.Fc
-#> Linhagem                 1 150.70557 150.70557 60.0851      0
-#> Fosforo:Linhagem Dekalb  5  57.99000  11.59800   4.624  9e-04
+#> Linhagem                 1 150.70557 150.70557 60.0851 0.0000
+#> Fosforo:Linhagem Dekalb  5  57.99000  11.59800  4.6240 0.0009
 #> Fosforo:Linhagem H&N     5  17.20689   3.44138  1.3721 0.2432
-#> Residuo                 83 208.18062   2.50820               
-#> Total                   94 434.08309   4.61791               
+#> Residuo                 83 208.18062   2.50820      NA     NA
+#> Total                   94 434.08309   4.61791      NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -985,13 +1037,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 64.08167
-#> 2    0.2 64.65622
-#> 3  0.391 65.07887
-#> 4  0.438 64.13667
-#> 5  0.454 63.14613
-#> 6  0.466 64.44875
+#>     Niveis     Medias
+#> 1    0.105   64.08167
+#> 2      0.2   64.65622
+#> 3    0.391   65.07887
+#> 4    0.438   64.13667
+#> 5    0.454   63.14613
+#> 6    0.466   64.44875
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -1006,12 +1058,12 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL      SQ QM     Fc    Pr>Fc
-#> Linhagem          1  0.8267  5 5.8913 0.017379
-#> Fosforo           5  1.6879  3 2.4057 0.043456
-#> Linhagem*Fosforo  5  1.8967  4 2.7034 0.025892
-#> Residuo          83 11.6469  2                
-#> Total            94 16.0582  1                
+#>                  GL      SQ      QM     Fc    Pr>Fc
+#> Linhagem          1  0.8267 0.82670 5.8913 0.017379
+#> Fosforo           5  1.6879 0.33757 2.4057 0.043456
+#> Linhagem*Fosforo  5  1.8967 0.37935 2.7034 0.025892
+#> Residuo          83 11.6469 0.14032                
+#> Total            94 16.0582                        
 #> ------------------------------------------------------------------------
 #> CV = 5.65 %
 #> 
@@ -1038,9 +1090,9 @@ for(i in 1:length(parametros)){
 #> Linhagem:Fosforo 0.391  1  0.22946 0.22946 1.6352 0.2045
 #> Linhagem:Fosforo 0.438  1  0.98340 0.98340 7.0081 0.0097
 #> Linhagem:Fosforo 0.454  1  0.05904 0.05904 0.4207 0.5184
-#> Linhagem:Fosforo 0.466  1  0.00150 0.00150 0.0107  0.918
-#> Residuo                83 11.64692 0.14032              
-#> Total                  94 16.05822 0.17083              
+#> Linhagem:Fosforo 0.466  1  0.00150 0.00150 0.0107 0.9180
+#> Residuo                83 11.64692 0.14032     NA     NA
+#> Total                  94 16.05822 0.17083     NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1059,9 +1111,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.352500
-#> 2      H 6.512344
+#>     Niveis     Medias
+#> 1   Dekalb   6.352500
+#> 2        H   6.512344
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1069,9 +1121,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.766667
-#> 2      H 6.518750
+#>     Niveis     Medias
+#> 1   Dekalb   6.766667
+#> 2        H   6.518750
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1089,9 +1141,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.430000
-#> 2      H 6.551488
+#>     Niveis     Medias
+#> 1   Dekalb   6.430000
+#> 2        H   6.551488
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1099,9 +1151,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.826131
-#> 2      H 6.806786
+#>     Niveis     Medias
+#> 1   Dekalb   6.826131
+#> 2        H   6.806786
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1113,10 +1165,10 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #>                         GL       SQ      QM     Fc  Pr.Fc
 #> Linhagem                 1  0.82670 0.82670 5.8913 0.0174
-#> Fosforo:Linhagem Dekalb  5  1.68245 0.33649 2.3979  0.044
+#> Fosforo:Linhagem Dekalb  5  1.68245 0.33649 2.3979 0.0440
 #> Fosforo:Linhagem H&N     5  1.90215 0.38043 2.7111 0.0255
-#> Residuo                 83 11.64692 0.14032              
-#> Total                   94 16.05822 0.17083              
+#> Residuo                 83 11.64692 0.14032     NA     NA
+#> Total                   94 16.05822 0.17083     NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1306,12 +1358,12 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL     SQ QM      Fc   Pr>Fc
-#> Linhagem          1   6.02  4 0.83696 0.36292
-#> Fosforo           5  80.79  2 2.24531 0.05730
-#> Linhagem*Fosforo  5  91.96  3 2.55553 0.03350
-#> Residuo          83 597.33  5                
-#> Total            94 776.11  1                
+#>                  GL     SQ      QM      Fc   Pr>Fc
+#> Linhagem          1   6.02  6.0234 0.83696 0.36292
+#> Fosforo           5  80.79 16.1589 2.24531 0.05730
+#> Linhagem*Fosforo  5  91.96 18.3916 2.55553 0.03350
+#> Residuo          83 597.33  7.1968                
+#> Total            94 776.11                        
 #> ------------------------------------------------------------------------
 #> CV = 3.38 %
 #> 
@@ -1335,12 +1387,12 @@ for(i in 1:length(parametros)){
 #> Fosforo                 5  80.79464 16.15893 2.2453 0.0573
 #> Linhagem:Fosforo 0.105  1  51.62551 51.62551 7.1734 0.0089
 #> Linhagem:Fosforo 0.2    1   0.60499  0.60499 0.0841 0.7726
-#> Linhagem:Fosforo 0.391  1  19.37393 19.37393  2.692 0.1046
+#> Linhagem:Fosforo 0.391  1  19.37393 19.37393 2.6920 0.1046
 #> Linhagem:Fosforo 0.438  1  20.82401 20.82401 2.8935 0.0927
 #> Linhagem:Fosforo 0.454  1   1.77143  1.77143 0.2461 0.6211
 #> Linhagem:Fosforo 0.466  1   3.95063  3.95063 0.5489 0.4608
-#> Residuo                83 597.33124  7.19676              
-#> Total                  94 776.10709  8.25646              
+#> Residuo                83 597.33124  7.19676     NA     NA
+#> Total                  94 776.10709  8.25646     NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1359,9 +1411,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 78.21917
-#> 2      H 77.83026
+#>     Niveis     Medias
+#> 1   Dekalb   78.21917
+#> 2        H   77.83026
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1369,9 +1421,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 80.33619
-#> 2      H 78.05815
+#>     Niveis     Medias
+#> 1   Dekalb   80.33619
+#> 2        H   78.05815
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1379,9 +1431,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 79.39000
-#> 2      H 81.67167
+#>     Niveis     Medias
+#> 1   Dekalb   79.39000
+#> 2        H   81.67167
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1389,9 +1441,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 78.48833
-#> 2      H 79.15381
+#>     Niveis     Medias
+#> 1   Dekalb   78.48833
+#> 2        H   79.15381
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1399,9 +1451,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 81.09976
-#> 2      H 80.10595
+#>     Niveis     Medias
+#> 1   Dekalb   81.09976
+#> 2        H   80.10595
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1412,11 +1464,11 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                         GL        SQ       QM     Fc  Pr.Fc
-#> Linhagem                 1   6.02337  6.02337  0.837 0.3629
+#> Linhagem                 1   6.02337  6.02337 0.8370 0.3629
 #> Fosforo:Linhagem Dekalb  5  66.30428 13.26086 1.8426 0.1134
 #> Fosforo:Linhagem H&N     5 106.44820 21.28964 2.9582 0.0166
-#> Residuo                 83 597.33124  7.19676              
-#> Total                   94 776.10709  8.25646              
+#> Residuo                 83 597.33124  7.19676     NA     NA
+#> Total                   94 776.10709  8.25646     NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1425,13 +1477,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 77.76996
-#> 2    0.2 78.21917
-#> 3  0.391 80.33619
-#> 4  0.438 79.39000
-#> 5  0.454 78.48833
-#> 6  0.466 81.09976
+#>     Niveis     Medias
+#> 1    0.105   77.76996
+#> 2      0.2   78.21917
+#> 3    0.391   80.33619
+#> 4    0.438   79.39000
+#> 5    0.454   78.48833
+#> 6    0.466   81.09976
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1533,12 +1585,12 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL        SQ QM     Fc    Pr>Fc
-#> Linhagem          1 0.0004867  5 4.3384 0.040339
-#> Fosforo           5 0.0009184  4 1.6372 0.159225
-#> Linhagem*Fosforo  5 0.0007240  3 1.2907 0.275801
-#> Residuo          83 0.0093120  2                
-#> Total            94 0.0114412  1                
+#>                  GL        SQ         QM     Fc    Pr>Fc
+#> Linhagem          1 0.0004867 0.00048674 4.3384 0.040339
+#> Fosforo           5 0.0009184 0.00018369 1.6372 0.159225
+#> Linhagem*Fosforo  5 0.0007240 0.00014481 1.2907 0.275801
+#> Residuo          83 0.0093120 0.00011219                
+#> Total            94 0.0114412                           
 #> ------------------------------------------------------------------------
 #> CV = 2.93 %
 #> 
@@ -1662,9 +1714,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 3.614750
-#> 2      H 3.578708
+#>     Niveis     Medias
+#> 1   Dekalb   3.614750
+#> 2        H   3.578708
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1672,9 +1724,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 3.509000
-#> 2      H 3.729833
+#>     Niveis     Medias
+#> 1   Dekalb   3.509000
+#> 2        H   3.729833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1682,9 +1734,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis  Medias
-#> 1 Dekalb 3.69100
-#> 2      H 3.70575
+#>     Niveis     Medias
+#> 1   Dekalb    3.69100
+#> 2        H    3.70575
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1702,9 +1754,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 3.777333
-#> 2      H 3.575375
+#>     Niveis     Medias
+#> 1   Dekalb   3.777333
+#> 2        H   3.575375
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1726,13 +1778,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 3.688125
-#> 2    0.2 3.614750
-#> 3  0.391 3.509000
-#> 4  0.438 3.691000
-#> 5  0.454 3.781500
-#> 6  0.466 3.777333
+#>     Niveis     Medias
+#> 1    0.105   3.688125
+#> 2      0.2   3.614750
+#> 3    0.391   3.509000
+#> 4    0.438   3.691000
+#> 5    0.454   3.781500
+#> 6    0.466   3.777333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1906,12 +1958,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 5300.625
-#> 2     15 5173.729
-#> 3     30 5301.562
-#> 4     45 5502.417
-#> 5     60 5501.979
+#>     Niveis     Medias
+#> 1        1   5300.625
+#> 2       15   5173.729
+#> 3       30   5301.562
+#> 4       45   5502.417
+#> 5       60   5501.979
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1919,12 +1971,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 5404.722
-#> 2     15 5300.822
-#> 3     30 5260.844
-#> 4     45 5461.956
-#> 5     60 5362.644
+#>     Niveis     Medias
+#> 1        1   5404.722
+#> 2       15   5300.822
+#> 3       30   5260.844
+#> 4       45   5461.956
+#> 5       60   5362.644
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1958,12 +2010,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 5347.354
-#> 2     15 5265.792
-#> 3     30 5202.729
-#> 4     45 5287.833
-#> 5     60 5546.594
+#>     Niveis     Medias
+#> 1        1   5347.354
+#> 2       15   5265.792
+#> 3       30   5202.729
+#> 4       45   5287.833
+#> 5       60   5546.594
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1988,13 +2040,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 5317.021
-#> 2    0.2 5300.625
-#> 3  0.391 5404.722
-#> 4  0.438 5222.042
-#> 5  0.454 5275.250
-#> 6  0.466 5347.354
+#>     Niveis     Medias
+#> 1    0.105   5317.021
+#> 2      0.2   5300.625
+#> 3    0.391   5404.722
+#> 4    0.438   5222.042
+#> 5    0.454   5275.250
+#> 6    0.466   5347.354
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -2002,13 +2054,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 5234.896
-#> 2    0.2 5173.729
-#> 3  0.391 5300.822
-#> 4  0.438 5257.458
-#> 5  0.454 5266.417
-#> 6  0.466 5265.792
+#>     Niveis     Medias
+#> 1    0.105   5234.896
+#> 2      0.2   5173.729
+#> 3    0.391   5300.822
+#> 4    0.438   5257.458
+#> 5    0.454   5266.417
+#> 6    0.466   5265.792
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -2016,13 +2068,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 5297.500
-#> 2    0.2 5301.562
-#> 3  0.391 5260.844
-#> 4  0.438 5163.979
-#> 5  0.454 5221.417
-#> 6  0.466 5202.729
+#>     Niveis     Medias
+#> 1    0.105   5297.500
+#> 2      0.2   5301.562
+#> 3    0.391   5260.844
+#> 4    0.438   5163.979
+#> 5    0.454   5221.417
+#> 6    0.466   5202.729
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -2307,9 +2359,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 75.33716
-#> 2      H 75.40756
+#>     Niveis     Medias
+#> 1   Dekalb   75.33716
+#> 2        H   75.40756
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -2317,9 +2369,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 75.23089
-#> 2      H 74.58086
+#>     Niveis     Medias
+#> 1   Dekalb   75.23089
+#> 2        H   74.58086
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -2341,13 +2393,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 76.06509
-#> 2    0.2 75.60452
-#> 3  0.391 76.17795
-#> 4  0.438 75.80501
-#> 5  0.454 75.33716
-#> 6  0.466 75.23089
+#>     Niveis     Medias
+#> 1    0.105   76.06509
+#> 2      0.2   75.60452
+#> 3    0.391   76.17795
+#> 4    0.438   75.80501
+#> 5    0.454   75.33716
+#> 6    0.466   75.23089
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -2658,9 +2710,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 62.12833
-#> 2      H 63.14000
+#>     Niveis     Medias
+#> 1   Dekalb   62.12833
+#> 2        H   63.14000
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -2938,12 +2990,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 6.250000
-#> 2     15 6.433333
-#> 3     30 6.608333
-#> 4     45 5.925000
-#> 5     60 6.545833
+#>     Niveis     Medias
+#> 1        1   6.250000
+#> 2       15   6.433333
+#> 3       30   6.608333
+#> 4       45   5.925000
+#> 5       60   6.545833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -2951,12 +3003,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 6.852381
-#> 2     15 6.328571
-#> 3     30 7.152381
-#> 4     45 6.566667
-#> 5     60 6.933333
+#>     Niveis     Medias
+#> 1        1   6.852381
+#> 2       15   6.328571
+#> 3       30   7.152381
+#> 4       45   6.566667
+#> 5       60   6.933333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3003,12 +3055,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 7.050000
-#> 2     15 6.620833
-#> 3     30 7.262500
-#> 4     45 6.887500
-#> 5     60 6.854167
+#>     Niveis     Medias
+#> 1        1   7.050000
+#> 2       15   6.620833
+#> 3       30   7.262500
+#> 4       45   6.887500
+#> 5       60   6.854167
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3016,12 +3068,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 6.616667
-#> 2     15 6.495833
-#> 3     30 6.660417
-#> 4     45 6.566667
-#> 5     60 6.395833
+#>     Niveis     Medias
+#> 1        1   6.616667
+#> 2       15   6.495833
+#> 3       30   6.660417
+#> 4       45   6.566667
+#> 5       60   6.395833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3029,12 +3081,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 6.620833
-#> 2     15 6.291667
-#> 3     30 7.037500
-#> 4     45 6.187500
-#> 5     60 6.441667
+#>     Niveis     Medias
+#> 1        1   6.620833
+#> 2       15   6.291667
+#> 3       30   7.037500
+#> 4       45   6.187500
+#> 5       60   6.441667
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3042,12 +3094,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 6.995833
-#> 2     15 6.991667
-#> 3     30 7.083333
-#> 4     45 6.908333
-#> 5     60 6.962500
+#>     Niveis     Medias
+#> 1        1   6.995833
+#> 2       15   6.991667
+#> 3       30   7.083333
+#> 4       45   6.908333
+#> 5       60   6.962500
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3055,12 +3107,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 6.512500
-#> 2     15 6.666667
-#> 3     30 6.587500
-#> 4     45 6.587500
-#> 5     60 6.404167
+#>     Niveis     Medias
+#> 1        1   6.512500
+#> 2       15   6.666667
+#> 3       30   6.587500
+#> 4       45   6.587500
+#> 5       60   6.404167
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3068,12 +3120,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 6.666667
-#> 2     15 6.504167
-#> 3     30 6.850000
-#> 4     45 6.745833
-#> 5     60 7.275000
+#>     Niveis     Medias
+#> 1        1   6.666667
+#> 2       15   6.504167
+#> 3       30   6.850000
+#> 4       45   6.745833
+#> 5       60   7.275000
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3133,9 +3185,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.250000
-#> 2      H 6.616667
+#>     Niveis     Medias
+#> 1   Dekalb   6.250000
+#> 2        H   6.616667
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3143,9 +3195,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.852381
-#> 2      H 6.620833
+#>     Niveis     Medias
+#> 1   Dekalb   6.852381
+#> 2        H   6.620833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3163,9 +3215,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis Medias
-#> 1 Dekalb 6.7500
-#> 2      H 6.5125
+#>     Niveis     Medias
+#> 1   Dekalb     6.7500
+#> 2        H     6.5125
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3173,9 +3225,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 7.137500
-#> 2      H 6.666667
+#>     Niveis     Medias
+#> 1   Dekalb   7.137500
+#> 2        H   6.666667
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3183,9 +3235,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.183333
-#> 2      H 6.620833
+#>     Niveis     Medias
+#> 1   Dekalb   6.183333
+#> 2        H   6.620833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3193,9 +3245,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.433333
-#> 2      H 6.495833
+#>     Niveis     Medias
+#> 1   Dekalb   6.433333
+#> 2        H   6.495833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3213,9 +3265,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 7.450000
-#> 2      H 6.991667
+#>     Niveis     Medias
+#> 1   Dekalb   7.450000
+#> 2        H   6.991667
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3253,9 +3305,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.608333
-#> 2      H 6.660417
+#>     Niveis     Medias
+#> 1   Dekalb   6.608333
+#> 2        H   6.660417
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3283,9 +3335,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.879167
-#> 2      H 6.587500
+#>     Niveis     Medias
+#> 1   Dekalb   6.879167
+#> 2        H   6.587500
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3293,9 +3345,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.733333
-#> 2      H 6.850000
+#>     Niveis     Medias
+#> 1   Dekalb   6.733333
+#> 2        H   6.850000
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3303,9 +3355,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.320833
-#> 2      H 6.887500
+#>     Niveis     Medias
+#> 1   Dekalb   6.320833
+#> 2        H   6.887500
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3313,9 +3365,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 5.925000
-#> 2      H 6.566667
+#>     Niveis     Medias
+#> 1   Dekalb   5.925000
+#> 2        H   6.566667
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3323,9 +3375,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.566667
-#> 2      H 6.187500
+#>     Niveis     Medias
+#> 1   Dekalb   6.566667
+#> 2        H   6.187500
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3333,9 +3385,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.366667
-#> 2      H 6.908333
+#>     Niveis     Medias
+#> 1   Dekalb   6.366667
+#> 2        H   6.908333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3343,9 +3395,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.470833
-#> 2      H 6.587500
+#>     Niveis     Medias
+#> 1   Dekalb   6.470833
+#> 2        H   6.587500
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3353,9 +3405,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.056250
-#> 2      H 6.745833
+#>     Niveis     Medias
+#> 1   Dekalb   6.056250
+#> 2        H   6.745833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3363,9 +3415,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 7.045833
-#> 2      H 6.854167
+#>     Niveis     Medias
+#> 1   Dekalb   7.045833
+#> 2        H   6.854167
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3373,9 +3425,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.545833
-#> 2      H 6.395833
+#>     Niveis     Medias
+#> 1   Dekalb   6.545833
+#> 2        H   6.395833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3383,9 +3435,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.933333
-#> 2      H 6.441667
+#>     Niveis     Medias
+#> 1   Dekalb   6.933333
+#> 2        H   6.441667
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3393,9 +3445,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.316667
-#> 2      H 6.962500
+#>     Niveis     Medias
+#> 1   Dekalb   6.316667
+#> 2        H   6.962500
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3403,9 +3455,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 6.183333
-#> 2      H 6.404167
+#>     Niveis     Medias
+#> 1   Dekalb   6.183333
+#> 2        H   6.404167
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3524,13 +3576,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 7.050000
-#> 2    0.2 6.616667
-#> 3  0.391 6.620833
-#> 4  0.438 6.995833
-#> 5  0.454 6.512500
-#> 6  0.466 6.666667
+#>     Niveis     Medias
+#> 1    0.105   7.050000
+#> 2      0.2   6.616667
+#> 3    0.391   6.620833
+#> 4    0.438   6.995833
+#> 5    0.454   6.512500
+#> 6    0.466   6.666667
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3619,13 +3671,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 6.620833
-#> 2    0.2 6.495833
-#> 3  0.391 6.291667
-#> 4  0.438 6.991667
-#> 5  0.454 6.666667
-#> 6  0.466 6.504167
+#>     Niveis     Medias
+#> 1    0.105   6.620833
+#> 2      0.2   6.495833
+#> 3    0.391   6.291667
+#> 4    0.438   6.991667
+#> 5    0.454   6.666667
+#> 6    0.466   6.504167
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3633,13 +3685,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 6.145833
-#> 2    0.2 6.608333
-#> 3  0.391 7.152381
-#> 4  0.438 6.158333
-#> 5  0.454 6.879167
-#> 6  0.466 6.733333
+#>     Niveis     Medias
+#> 1    0.105   6.145833
+#> 2      0.2   6.608333
+#> 3    0.391   7.152381
+#> 4    0.438   6.158333
+#> 5    0.454   6.879167
+#> 6    0.466   6.733333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3647,13 +3699,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 7.262500
-#> 2    0.2 6.660417
-#> 3  0.391 7.037500
-#> 4  0.438 7.083333
-#> 5  0.454 6.587500
-#> 6  0.466 6.850000
+#>     Niveis     Medias
+#> 1    0.105   7.262500
+#> 2      0.2   6.660417
+#> 3    0.391   7.037500
+#> 4    0.438   7.083333
+#> 5    0.454   6.587500
+#> 6    0.466   6.850000
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3661,13 +3713,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 6.320833
-#> 2    0.2 5.925000
-#> 3  0.391 6.566667
-#> 4  0.438 6.366667
-#> 5  0.454 6.470833
-#> 6  0.466 6.056250
+#>     Niveis     Medias
+#> 1    0.105   6.320833
+#> 2      0.2   5.925000
+#> 3    0.391   6.566667
+#> 4    0.438   6.366667
+#> 5    0.454   6.470833
+#> 6    0.466   6.056250
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3675,13 +3727,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 6.887500
-#> 2    0.2 6.566667
-#> 3  0.391 6.187500
-#> 4  0.438 6.908333
-#> 5  0.454 6.587500
-#> 6  0.466 6.745833
+#>     Niveis     Medias
+#> 1    0.105   6.887500
+#> 2      0.2   6.566667
+#> 3    0.391   6.187500
+#> 4    0.438   6.908333
+#> 5    0.454   6.587500
+#> 6    0.466   6.745833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3689,13 +3741,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 7.045833
-#> 2    0.2 6.545833
-#> 3  0.391 6.933333
-#> 4  0.438 6.316667
-#> 5  0.454 6.183333
-#> 6  0.466 6.333333
+#>     Niveis     Medias
+#> 1    0.105   7.045833
+#> 2      0.2   6.545833
+#> 3    0.391   6.933333
+#> 4    0.438   6.316667
+#> 5    0.454   6.183333
+#> 6    0.466   6.333333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3703,13 +3755,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 6.854167
-#> 2    0.2 6.395833
-#> 3  0.391 6.441667
-#> 4  0.438 6.962500
-#> 5  0.454 6.404167
-#> 6  0.466 7.275000
+#>     Niveis     Medias
+#> 1    0.105   6.854167
+#> 2      0.2   6.395833
+#> 3    0.391   6.441667
+#> 4    0.438   6.962500
+#> 5    0.454   6.404167
+#> 6    0.466   7.275000
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'dia', 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -3776,12 +3828,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 75.74167
-#> 2     15 76.90833
-#> 3     30 76.45417
-#> 4     45 78.07083
-#> 5     60 81.38021
+#>     Niveis     Medias
+#> 1        1   75.74167
+#> 2       15   76.90833
+#> 3       30   76.45417
+#> 4       45   78.07083
+#> 5       60   81.38021
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3789,12 +3841,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 77.14167
-#> 2     15 78.27500
-#> 3     30 80.38333
-#> 4     45 75.38750
-#> 5     60 79.90833
+#>     Niveis     Medias
+#> 1        1   77.14167
+#> 2       15   78.27500
+#> 3       30   80.38333
+#> 4       45   75.38750
+#> 5       60   79.90833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3802,12 +3854,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 80.40952
-#> 2     15 77.42857
-#> 3     30 83.79524
-#> 4     45 78.46190
-#> 5     60 81.58571
+#>     Niveis     Medias
+#> 1        1   80.40952
+#> 2       15   77.42857
+#> 3       30   83.79524
+#> 4       45   78.46190
+#> 5       60   81.58571
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3854,12 +3906,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 81.84167
-#> 2     15 78.78333
-#> 3     30 83.67917
-#> 4     45 81.10833
-#> 5     60 81.40000
+#>     Niveis     Medias
+#> 1        1   81.84167
+#> 2       15   78.78333
+#> 3       30   83.67917
+#> 4       45   81.10833
+#> 5       60   81.40000
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3867,12 +3919,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 76.90000
-#> 2     15 78.63333
-#> 3     30 79.42083
-#> 4     45 77.77500
-#> 5     60 77.55417
+#>     Niveis     Medias
+#> 1        1   76.90000
+#> 2       15   78.63333
+#> 3       30   79.42083
+#> 4       45   77.77500
+#> 5       60   77.55417
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3880,12 +3932,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 78.87083
-#> 2     15 76.13750
-#> 3     30 81.61667
-#> 4     45 75.54583
-#> 5     60 78.01667
+#>     Niveis     Medias
+#> 1        1   78.87083
+#> 2       15   76.13750
+#> 3       30   81.61667
+#> 4       45   75.54583
+#> 5       60   78.01667
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3893,12 +3945,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 80.32083
-#> 2     15 82.30833
-#> 3     30 82.85833
-#> 4     45 81.33750
-#> 5     60 81.53333
+#>     Niveis     Medias
+#> 1        1   80.32083
+#> 2       15   82.30833
+#> 3       30   82.85833
+#> 4       45   81.33750
+#> 5       60   81.53333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3906,12 +3958,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 78.25833
-#> 2     15 80.03750
-#> 3     30 79.57917
-#> 4     45 79.77917
-#> 5     60 78.17500
+#>     Niveis     Medias
+#> 1        1   78.25833
+#> 2       15   80.03750
+#> 3       30   79.57917
+#> 4       45   79.77917
+#> 5       60   78.17500
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3919,12 +3971,12 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1      1 78.21250
-#> 2     15 79.23333
-#> 3     30 81.18750
-#> 4     45 79.43333
-#> 5     60 82.57292
+#>     Niveis     Medias
+#> 1        1   78.21250
+#> 2       15   79.23333
+#> 3       30   81.18750
+#> 4       45   79.43333
+#> 5       60   82.57292
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -3984,9 +4036,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 77.14167
-#> 2      H 76.90000
+#>     Niveis     Medias
+#> 1   Dekalb   77.14167
+#> 2        H   76.90000
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4004,9 +4056,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 77.17917
-#> 2      H 80.32083
+#>     Niveis     Medias
+#> 1   Dekalb   77.17917
+#> 2        H   80.32083
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4014,9 +4066,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 80.36250
-#> 2      H 78.25833
+#>     Niveis     Medias
+#> 1   Dekalb   80.36250
+#> 2        H   78.25833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4024,9 +4076,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 82.74583
-#> 2      H 78.21250
+#>     Niveis     Medias
+#> 1   Dekalb   82.74583
+#> 2        H   78.21250
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4034,9 +4086,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 76.90833
-#> 2      H 78.78333
+#>     Niveis     Medias
+#> 1   Dekalb   76.90833
+#> 2        H   78.78333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4044,9 +4096,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 78.27500
-#> 2      H 78.63333
+#>     Niveis     Medias
+#> 1   Dekalb   78.27500
+#> 2        H   78.63333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4064,9 +4116,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 85.77500
-#> 2      H 82.30833
+#>     Niveis     Medias
+#> 1   Dekalb   85.77500
+#> 2        H   82.30833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4104,9 +4156,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 80.38333
-#> 2      H 79.42083
+#>     Niveis     Medias
+#> 1   Dekalb   80.38333
+#> 2        H   79.42083
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4134,9 +4186,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 81.59583
-#> 2      H 79.57917
+#>     Niveis     Medias
+#> 1   Dekalb   81.59583
+#> 2        H   79.57917
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4144,9 +4196,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis  Medias
-#> 1 Dekalb 81.0625
-#> 2      H 81.1875
+#>     Niveis     Medias
+#> 1   Dekalb    81.0625
+#> 2        H    81.1875
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4154,9 +4206,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 78.07083
-#> 2      H 81.10833
+#>     Niveis     Medias
+#> 1   Dekalb   78.07083
+#> 2        H   81.10833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4164,9 +4216,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis  Medias
-#> 1 Dekalb 75.3875
-#> 2      H 77.7750
+#>     Niveis     Medias
+#> 1   Dekalb    75.3875
+#> 2        H    77.7750
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4184,9 +4236,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis  Medias
-#> 1 Dekalb 78.5500
-#> 2      H 81.3375
+#>     Niveis     Medias
+#> 1   Dekalb    78.5500
+#> 2        H    81.3375
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4194,9 +4246,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 78.33333
-#> 2      H 79.77917
+#>     Niveis     Medias
+#> 1   Dekalb   78.33333
+#> 2        H   79.77917
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4204,9 +4256,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 75.87917
-#> 2      H 79.43333
+#>     Niveis     Medias
+#> 1   Dekalb   75.87917
+#> 2        H   79.43333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4214,9 +4266,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 81.38021
-#> 2      H 81.40000
+#>     Niveis     Medias
+#> 1   Dekalb   81.38021
+#> 2        H   81.40000
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4224,9 +4276,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 79.90833
-#> 2      H 77.55417
+#>     Niveis     Medias
+#> 1   Dekalb   79.90833
+#> 2        H   77.55417
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4244,9 +4296,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 77.92500
-#> 2      H 81.53333
+#>     Niveis     Medias
+#> 1   Dekalb   77.92500
+#> 2        H   81.53333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4254,9 +4306,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 77.62083
-#> 2      H 78.17500
+#>     Niveis     Medias
+#> 1   Dekalb   77.62083
+#> 2        H   78.17500
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4264,9 +4316,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 77.95417
-#> 2      H 82.57292
+#>     Niveis     Medias
+#> 1   Dekalb   77.95417
+#> 2        H   82.57292
 #> ------------------------------------------------------------------------
 #> 
 #> Desdobrando  Fosforo  dentro de cada nivel de  Dia e Linhagem 
@@ -4375,13 +4427,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 81.84167
-#> 2    0.2 76.90000
-#> 3  0.391 78.87083
-#> 4  0.438 80.32083
-#> 5  0.454 78.25833
-#> 6  0.466 78.21250
+#>     Niveis     Medias
+#> 1    0.105   81.84167
+#> 2      0.2   76.90000
+#> 3    0.391   78.87083
+#> 4    0.438   80.32083
+#> 5    0.454   78.25833
+#> 6    0.466   78.21250
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4470,13 +4522,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 78.78333
-#> 2    0.2 78.63333
-#> 3  0.391 76.13750
-#> 4  0.438 82.30833
-#> 5  0.454 80.03750
-#> 6  0.466 79.23333
+#>     Niveis     Medias
+#> 1    0.105   78.78333
+#> 2      0.2   78.63333
+#> 3    0.391   76.13750
+#> 4    0.438   82.30833
+#> 5    0.454   80.03750
+#> 6    0.466   79.23333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4565,13 +4617,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 83.67917
-#> 2    0.2 79.42083
-#> 3  0.391 81.61667
-#> 4  0.438 82.85833
-#> 5  0.454 79.57917
-#> 6  0.466 81.18750
+#>     Niveis     Medias
+#> 1    0.105   83.67917
+#> 2      0.2   79.42083
+#> 3    0.391   81.61667
+#> 4    0.438   82.85833
+#> 5    0.454   79.57917
+#> 6    0.466   81.18750
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4660,13 +4712,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 81.10833
-#> 2    0.2 77.77500
-#> 3  0.391 75.54583
-#> 4  0.438 81.33750
-#> 5  0.454 79.77917
-#> 6  0.466 79.43333
+#>     Niveis     Medias
+#> 1    0.105   81.10833
+#> 2      0.2   77.77500
+#> 3    0.391   75.54583
+#> 4    0.438   81.33750
+#> 5    0.454   79.77917
+#> 6    0.466   79.43333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4755,13 +4807,13 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 81.40000
-#> 2    0.2 77.55417
-#> 3  0.391 78.01667
-#> 4  0.438 81.53333
-#> 5  0.454 78.17500
-#> 6  0.466 82.57292
+#>     Niveis     Medias
+#> 1    0.105   81.40000
+#> 2      0.2   77.55417
+#> 3    0.391   78.01667
+#> 4    0.438   81.53333
+#> 5    0.454   78.17500
+#> 6    0.466   82.57292
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'dia', 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -4822,9 +4874,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis    Medias
-#> 1 Dekalb 0.3638542
-#> 2      H 0.3662500
+#>     Niveis     Medias
+#> 1   Dekalb  0.3638542
+#> 2        H  0.3662500
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4852,9 +4904,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis    Medias
-#> 1 Dekalb 0.3585833
-#> 2      H 0.3645833
+#>     Niveis     Medias
+#> 1   Dekalb  0.3585833
+#> 2        H  0.3645833
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4862,9 +4914,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis    Medias
-#> 1 Dekalb 0.3546667
-#> 2      H 0.3548333
+#>     Niveis     Medias
+#> 1   Dekalb  0.3546667
+#> 2        H  0.3548333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4872,9 +4924,9 @@ for(i in 1:length(parametros)){
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>   Niveis    Medias
-#> 1 Dekalb 0.3635417
-#> 2      H 0.3599583
+#>     Niveis     Medias
+#> 1   Dekalb  0.3635417
+#> 2        H  0.3599583
 #> ------------------------------------------------------------------------
 #> 
 #> 

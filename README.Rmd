@@ -30,16 +30,28 @@ library(ExpDes.pt)
 dados<- readxl::read_excel("data-raw/Dados Mestrado João.xlsx") |>
   janitor::clean_names()
 dplyr::glimpse(dados)
+dados <- dados |> 
+  mutate(
+    class_peso = case_when(
+      peso_g < 53 ~ "pequeno",
+      peso_g < 63 ~ "medio",
+      peso_g < 73 ~ "grande",
+      TRUE ~ "extra_grande"
+    )
+  )
+table(dados$class_peso)
 ```
 
 
-- seleção das variáveis para a análise
+- seleção das variáveis para a análise.
+
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
 dados <- dados |>
   select(data,
          repeticao,
          linhagem,
          nivel_de_fosforo_disp,
+         class_peso,
          resistencia_kgf,
          frequencia_ressonante,
          shape_index,
@@ -53,6 +65,7 @@ dados <- dados |>
 
 - lidando com os valores perdidos de `resistencia_kgf`;
 - definindo as datas da amostragem.
+
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
 dados <-dados |>
   dplyr::mutate(
@@ -76,19 +89,20 @@ dplyr::glimpse(dados)
 A análise foi realizada independete dos tratamentos para descrever o comportamento das variáveis ao longo do dias por linhagem.
 
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
-parametros <- names(dados)[5:(length(dados)-1)]
+parametros <- names(dados)[6:(length(dados)-1)]
 
 for(i in 1:length(parametros)){
   da <- dados |>
-    select(dia, linhagem, parametros[i]) 
-  names(da) <- c("dia","linhagem","y")
+    select(dia, linhagem, class_peso, parametros[i]) 
+  names(da) <- c("dia","linhagem","class_peso","y")
   plot<-da |> 
-    dplyr::group_by(dia, linhagem) |>
+    dplyr::group_by(dia, linhagem, class_peso) |>
     dplyr::summarise(re=mean(y, na.rm=TRUE)) |>
     ggplot(aes(x=dia, y=re, color=linhagem)) +
     geom_point() +
     geom_smooth(method = "lm")+
-    labs(x="Dias",y=parametros[i])
+    labs(x="Dias",y=parametros[i]) #+
+    # facet_wrap(~class_peso)
   print(plot)
 
   tab <- da |>
@@ -106,8 +120,9 @@ for(i in 1:length(parametros)){
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
 skim(dados)
 ```
-## Gráfico boxplot
- - Análise para todas as variáveis do banco de dados, por dia.
+
+## Gráfico de linhas
+ - Análise para todas as variáveis do banco de dados, por nível de `P`.
  
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
 for(i in 1:length(parametros)){
@@ -115,15 +130,19 @@ for(i in 1:length(parametros)){
     select(dia, linhagem, nivel_de_fosforo_disp, parametros[i]) 
   names(da) <- c("dia","linhagem","nivel_de_fosforo_disp","y")
   plot <- da |>
-    ggplot(aes(x = as.factor(nivel_de_fosforo_disp), y = y, fill=as.factor(dia))) +
-    geom_boxplot() +
-    facet_wrap(~dia, nrow=5) +
-    labs(x="Nível de Fósforo disponível (%)", fill="Dias",y=parametros[i])
+    group_by(dia, nivel_de_fosforo_disp) |> 
+    drop_na() |> 
+    mutate( y = mean(y), na.rm=TRUE) |> 
+    ggplot(aes(x = dia, y = y, color=as.factor(nivel_de_fosforo_disp))) +
+    geom_line() +
+    labs(color="Nível de Fósforo disponível (%)", x="Dias",y=parametros[i])
   print(plot)
 }
 ```
 
- ### Independent do dia
+
+
+ ### Independente do dia
  
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
 for(i in 1:length(parametros)){
@@ -144,37 +163,68 @@ for(i in 1:length(parametros)){
 
 ## Matriz de correlação para linhagem **DEKALB**
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
-dados  |>
-  filter(linhagem == "Dekalb") |>
-  select(resistencia_kgf:espessura_mm)  |>
-  cor(use = "p")  |>
-  corrplot::corrplot()
+classes<-c("medio", "grande")
+for(i in 1:2){
+  dados  |>
+    filter(linhagem == "Dekalb", class_peso == classes[i]) |>
+    drop_na() |> 
+    select(resistencia_kgf:espessura_mm)  |>
+    cor(use = "p")  |>
+    corrplot::corrplot()
+}
 ```
 
+### Classe peso do ovo = **MEDIO**
 
 
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
 dados |>
-  filter(linhagem == "Dekalb") |>
+  filter(linhagem == "Dekalb", class_peso =="medio") |>
   select(resistencia_kgf:espessura_mm) |>
   ggpairs()
 ```
+
+
+### Classe peso do ovo = **GRANDE**
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados |>
+  filter(linhagem == "Dekalb", class_peso =="grande") |>
+  select(resistencia_kgf:espessura_mm) |>
+  ggpairs()
+```
+
 
 ## Matriz de correlação para linhagem **H&N**
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
-dados  |>
-  filter(linhagem == "H&N") |>
-  select(resistencia_kgf:espessura_mm)  |>
-  cor(use = "p")  |>
-  corrplot::corrplot()
+for(i in 1:2){
+  dados  |>
+    filter(linhagem == "H&N", class_peso == classes[i]) |>
+    drop_na() |> 
+    select(resistencia_kgf:espessura_mm)  |>
+    cor(use = "p")  |>
+    corrplot::corrplot()
+}
 ```
+
+### Classe peso do ovo = **MEDIO**
+
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
 dados |>
-  filter(linhagem == "H&N") |>
+  filter(linhagem == "H&N", class_peso =="medio") |>
   select(resistencia_kgf:espessura_mm) |>
   ggpairs()
 ```
 
+
+### Classe peso do ovo = **GRANDE**
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados |>
+  filter(linhagem == "H&N", class_peso =="grande") |>
+  select(resistencia_kgf:espessura_mm) |>
+  ggpairs()
+```
 
 ## Análise de variância
 
