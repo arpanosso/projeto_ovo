@@ -61,26 +61,6 @@ table(dados$class_peso)
 #>           29          673          698           15
 ```
 
--   seleção das variáveis para a análise.
-
-``` r
-dados <- dados |>
-  select(data,
-         repeticao,
-         linhagem,
-         nivel_de_fosforo_disp,
-         class_peso,
-         resistencia_kgf,
-         frequencia_ressonante,
-         shape_index,
-         peso_g,
-         altura_de_albumen,
-         uh,
-         espessura_mm
-         ) #|> 
-  # mutate(log_frequencia_ressonante = log(frequencia_ressonante))
-```
-
 -   lidando com os valores perdidos de `resistencia_kgf`;
 -   definindo as datas da amostragem.
 
@@ -100,20 +80,119 @@ dados <-dados |>
   )
 dplyr::glimpse(dados)
 #> Rows: 1,415
-#> Columns: 13
+#> Columns: 25
 #> $ data                  <dttm> 2021-05-14, 2021-05-14, 2021-05-14, 2021-05-14,~
-#> $ repeticao             <dbl> 1, 1, 3, 3, 3, 5, 5, 5, 7, 7, 7, 8, 8, 8, 10, 10~
+#> $ no_ovo_egg_tester     <dbl> 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, ~
 #> $ linhagem              <chr> "H&N", "H&N", "H&N", "H&N", "H&N", "H&N", "H&N",~
+#> $ box                   <dbl> 117, 117, 135, 135, 135, 152, 152, 152, 166, 166~
+#> $ tratamento            <dbl> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ~
+#> $ repeticao             <dbl> 1, 1, 3, 3, 3, 5, 5, 5, 7, 7, 7, 8, 8, 8, 10, 10~
+#> $ no_ovo                <dbl> 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, ~
 #> $ nivel_de_fosforo_disp <dbl> 0.391, 0.391, 0.391, 0.391, 0.391, 0.391, 0.391,~
-#> $ class_peso            <chr> "grande", "grande", "grande", "medio", "grande",~
-#> $ resistencia_kgf       <dbl> 3.40, 3.56, 5.22, 4.23, 4.07, 5.02, 3.32, 4.97, ~
 #> $ frequencia_ressonante <dbl> 4679, 5560, 5568, 5087, 6197, 5222, 5653, 4870, ~
+#> $ eixo_x_mm             <dbl> 44.59, 42.60, 44.75, 42.57, 44.76, 43.54, 43.31,~
+#> $ eixo_y_mm             <dbl> 59.38, 59.04, 58.60, 56.67, 59.53, 58.65, 59.07,~
 #> $ shape_index           <dbl> 75.09262, 72.15447, 76.36519, 75.11911, 75.18898~
 #> $ peso_g                <dbl> 66.3, 64.3, 66.8, 61.0, 69.4, 64.5, 65.6, 70.3, ~
 #> $ altura_de_albumen     <dbl> 5.8, 5.8, 7.5, 7.8, 5.9, 4.4, 6.5, 8.0, 6.5, 7.0~
+#> $ cor_de_gema           <dbl> 4, 5, 5, 5, 4, 7, 7, 7, 5, 5, 5, 6, 6, 6, 4, 5, ~
 #> $ uh                    <dbl> 73.0, 73.8, 84.8, 88.2, 72.7, 60.8, 78.6, 86.9, ~
+#> $ resistencia_kgf       <dbl> 3.40, 3.56, 5.22, 4.23, 4.07, 5.02, 3.32, 4.97, ~
 #> $ espessura_mm          <dbl> 0.37, 0.36, 0.39, 0.36, 0.39, 0.39, 0.33, 0.37, ~
+#> $ altura_de_gema        <dbl> 16.6, 17.9, 17.3, 16.5, 18.0, 15.6, 19.6, 20.8, ~
+#> $ diametro_de_gema      <dbl> 43.7, 43.7, 43.3, 43.0, 44.3, 44.3, 45.3, 43.7, ~
+#> $ indice_gema           <dbl> 0.380, 0.410, 0.400, 0.384, 0.406, 0.352, 0.433,~
+#> $ peso_casca            <dbl> 6.10, 5.99, 6.45, 5.49, 6.63, 6.77, 5.44, 6.59, ~
+#> $ percent_casca         <dbl> 0.09200603, 0.09315708, 0.09655689, 0.09000000, ~
+#> $ class_peso            <chr> "grande", "grande", "grande", "medio", "grande",~
 #> $ dia                   <dbl> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ~
+```
+
+-   seleção das variáveis para a análise.
+
+``` r
+dados <- dados |>
+  select(dia,
+         repeticao,
+         linhagem,
+         nivel_de_fosforo_disp,
+         class_peso,
+         resistencia_kgf,
+         frequencia_ressonante,
+         shape_index,
+         peso_g,
+         altura_de_albumen,
+         uh,
+         espessura_mm
+         ) #|> 
+  # mutate(log_frequencia_ressonante = log(frequencia_ressonante))
+```
+
+## Corrigindo os outliers
+
+-   definindo uma função para o input de valores perdidos a partir da
+    média do tratamento (Pd e Linhage).
+
+``` r
+input_na <- function(y,trat){
+  df <- tibble(trat, y)
+  vl <- is.na(y)
+  df <- df[vl,]
+  if(nrow(df) != 0){
+    vetor_medias <- tapply(y,trat,mean,na.rm=TRUE)
+    for(j in 1:nrow(df)){
+      df[j,2] <- 
+      vetor_medias[which(df$trat[j] == names(vetor_medias))]
+    }
+  }
+  return(df$y)
+}
+```
+
+``` r
+dias <- unique(dados$dia)
+linhagens <- unique(dados$linhagem)
+for(k in 6:length(dados)){ # para cada variável no BD
+  for(i in seq_along(dias)){
+    da <- dados |>
+      filter(dia == dias[i])
+    Pd <- da$nivel_de_fosforo_disp
+    Pd <- forcats::as_factor(Pd)
+    Lin <- da$linhagem
+    Lin <- forcats::as_factor(Lin)
+    trat <- paste0(Lin,"_",Pd)
+    y<-da[k] |>  pull()
+    y[is.na(y)] <- input_na(y, trat)
+    
+    # boxplot_original <- tibble(trat,y) |>
+    #   ggplot(aes(x=y, y=trat)) +
+    #   geom_boxplot() +
+    #   labs(title = paste0("ORIGINAL - Dia: ", dias[i],"; Variável: ",names(dados[k])))
+    # print(boxplot_original)
+    
+    mod <- aov(y~trat)
+    rs<-rstudent(mod)
+    yp <- predict(mod)
+    
+    li<-quantile(rs, .25) - IQR(rs) *1.5
+    ls<-quantile(rs, .75) + IQR(rs) *1.5
+    # print({
+    #   plot(rs ~yp)
+    #   abline(h=c(li, ls), lty=2, col="red")
+    # })
+    regra <- rs >= ls | rs <= li
+    da[da$dia == dias[i] & regra, k] <- yp[regra]
+    
+    # y <- da[k] |> pull()
+    # boxplot_arrumado<-tibble(trat,y) |>
+    #   ggplot(aes(x=y, y=trat)) +
+    #   geom_boxplot() +
+    #   labs(title = paste0("TRATADA - Dia: ", dias[i],"; Variável: ",names(dados[k])))
+    # print(boxplot_arrumado)
+    dados[dados$dia == dias[i],k] <- y
+    
+  }
+}
 ```
 
 ## Análise de regressão linear
@@ -122,7 +201,7 @@ A análise foi realizada independete dos tratamentos para descrever o
 comportamento das variáveis ao longo do dias por linhagem.
 
 ``` r
-parametros <- names(dados)[6:(length(dados)-1)]
+parametros <- names(dados)[6:(length(dados))]
 
 for(i in 1:length(parametros)){
   da <- dados |>
@@ -138,171 +217,17 @@ for(i in 1:length(parametros)){
     # facet_wrap(~class_peso)
   print(plot)
 
-  tab <- da |>
-    dplyr::group_by(dia,linhagem) |>
-    dplyr::summarise(y=mean(y, na.rm=TRUE))
-  
-  mod <- lm(y~dia + linhagem, data=tab)
-  print(summary.lm(mod))
-  plot(mod)
+  # tab <- da |>
+  #   dplyr::group_by(dia,linhagem) |>
+  #   dplyr::summarise(y=mean(y, na.rm=TRUE))
+  # 
+  # mod <- lm(y~dia + linhagem, data=tab)
+  # print(summary.lm(mod))
+  # plot(mod)
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
-
-    #> 
-    #> Call:
-    #> lm(formula = y ~ dia + linhagem, data = tab)
-    #> 
-    #> Residuals:
-    #>      Min       1Q   Median       3Q      Max 
-    #> -0.05343 -0.04214 -0.01505  0.04902  0.06213 
-    #> 
-    #> Coefficients:
-    #>               Estimate Std. Error t value Pr(>|t|)    
-    #> (Intercept)  3.8423751  0.0346587 110.863 1.28e-12 ***
-    #> dia         -0.0053243  0.0008196  -6.496 0.000335 ***
-    #> linhagemH&N -0.0983600  0.0343108  -2.867 0.024104 *  
-    #> ---
-    #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    #> 
-    #> Residual standard error: 0.05425 on 7 degrees of freedom
-    #> Multiple R-squared:  0.8781, Adjusted R-squared:  0.8433 
-    #> F-statistic: 25.21 on 2 and 7 DF,  p-value: 0.0006325
-
-![](README_files/figure-gfm/unnamed-chunk-6-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-6.png)<!-- -->
-
-    #> 
-    #> Call:
-    #> lm(formula = y ~ dia + linhagem, data = tab)
-    #> 
-    #> Residuals:
-    #>      Min       1Q   Median       3Q      Max 
-    #> -154.631  -48.765   -2.342   82.169  117.902 
-    #> 
-    #> Coefficients:
-    #>             Estimate Std. Error t value Pr(>|t|)    
-    #> (Intercept) 5193.126     67.545  76.884 1.66e-11 ***
-    #> dia            5.661      1.597   3.544  0.00942 ** 
-    #> linhagemH&N   21.638     66.867   0.324  0.75569    
-    #> ---
-    #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    #> 
-    #> Residual standard error: 105.7 on 7 degrees of freedom
-    #> Multiple R-squared:  0.644,  Adjusted R-squared:  0.5423 
-    #> F-statistic: 6.332 on 2 and 7 DF,  p-value: 0.02691
-
-![](README_files/figure-gfm/unnamed-chunk-6-7.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-8.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-9.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-10.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-11.png)<!-- -->
-
-    #> 
-    #> Call:
-    #> lm(formula = y ~ dia + linhagem, data = tab)
-    #> 
-    #> Residuals:
-    #>       Min        1Q    Median        3Q       Max 
-    #> -0.231430 -0.124791  0.004638  0.085103  0.285269 
-    #> 
-    #> Coefficients:
-    #>              Estimate Std. Error t value Pr(>|t|)    
-    #> (Intercept) 75.449881   0.113468  664.94  < 2e-16 ***
-    #> dia          0.007915   0.002683    2.95   0.0214 *  
-    #> linhagemH&N -1.229854   0.112329  -10.95 1.17e-05 ***
-    #> ---
-    #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    #> 
-    #> Residual standard error: 0.1776 on 7 degrees of freedom
-    #> Multiple R-squared:  0.9484, Adjusted R-squared:  0.9336 
-    #> F-statistic: 64.29 on 2 and 7 DF,  p-value: 3.128e-05
-
-![](README_files/figure-gfm/unnamed-chunk-6-12.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-13.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-14.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-15.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-16.png)<!-- -->
-
-    #> 
-    #> Call:
-    #> lm(formula = y ~ dia + linhagem, data = tab)
-    #> 
-    #> Residuals:
-    #>     Min      1Q  Median      3Q     Max 
-    #> -1.4614 -0.6409  0.1453  0.4940  1.4403 
-    #> 
-    #> Coefficients:
-    #>             Estimate Std. Error t value Pr(>|t|)    
-    #> (Intercept) 62.42370    0.65293  95.606 3.61e-12 ***
-    #> dia         -0.02264    0.01544  -1.466  0.18598    
-    #> linhagemH&N  2.52023    0.64637   3.899  0.00591 ** 
-    #> ---
-    #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    #> 
-    #> Residual standard error: 1.022 on 7 degrees of freedom
-    #> Multiple R-squared:  0.7126, Adjusted R-squared:  0.6304 
-    #> F-statistic: 8.676 on 2 and 7 DF,  p-value: 0.01273
-
-![](README_files/figure-gfm/unnamed-chunk-6-17.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-18.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-19.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-20.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-21.png)<!-- -->
-
-    #> 
-    #> Call:
-    #> lm(formula = y ~ dia + linhagem, data = tab)
-    #> 
-    #> Residuals:
-    #>      Min       1Q   Median       3Q      Max 
-    #> -0.22801 -0.06331  0.01630  0.06702  0.18702 
-    #> 
-    #> Coefficients:
-    #>              Estimate Std. Error t value Pr(>|t|)    
-    #> (Intercept)  6.572100   0.091143  72.108 2.59e-11 ***
-    #> dia         -0.001281   0.002155  -0.595   0.5708    
-    #> linhagemH&N  0.184955   0.090228   2.050   0.0795 .  
-    #> ---
-    #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    #> 
-    #> Residual standard error: 0.1427 on 7 degrees of freedom
-    #> Multiple R-squared:  0.3942, Adjusted R-squared:  0.2211 
-    #> F-statistic: 2.278 on 2 and 7 DF,  p-value: 0.173
-
-![](README_files/figure-gfm/unnamed-chunk-6-22.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-23.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-24.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-25.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-26.png)<!-- -->
-
-    #> 
-    #> Call:
-    #> lm(formula = y ~ dia + linhagem, data = tab)
-    #> 
-    #> Residuals:
-    #>      Min       1Q   Median       3Q      Max 
-    #> -1.69894 -0.58537 -0.07698  0.71350  1.63887 
-    #> 
-    #> Coefficients:
-    #>               Estimate Std. Error t value Pr(>|t|)    
-    #> (Intercept) 79.2153600  0.6980292 113.484 1.09e-12 ***
-    #> dia         -0.0003967  0.0165062  -0.024    0.981    
-    #> linhagemH&N  0.4900703  0.6910230   0.709    0.501    
-    #> ---
-    #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    #> 
-    #> Residual standard error: 1.093 on 7 degrees of freedom
-    #> Multiple R-squared:  0.06711,    Adjusted R-squared:  -0.1994 
-    #> F-statistic: 0.2518 on 2 and 7 DF,  p-value: 0.7842
-
-![](README_files/figure-gfm/unnamed-chunk-6-27.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-28.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-29.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-30.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-31.png)<!-- -->
-
-    #> 
-    #> Call:
-    #> lm(formula = y ~ dia + linhagem, data = tab)
-    #> 
-    #> Residuals:
-    #>        Min         1Q     Median         3Q        Max 
-    #> -0.0065625 -0.0017254 -0.0003408  0.0021902  0.0047028 
-    #> 
-    #> Coefficients:
-    #>               Estimate Std. Error t value Pr(>|t|)    
-    #> (Intercept)  3.624e-01  2.400e-03 150.955 1.48e-13 ***
-    #> dia         -1.251e-04  5.676e-05  -2.204   0.0633 .  
-    #> linhagemH&N  4.674e-03  2.376e-03   1.967   0.0899 .  
-    #> ---
-    #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    #> 
-    #> Residual standard error: 0.003757 on 7 degrees of freedom
-    #> Multiple R-squared:  0.5549, Adjusted R-squared:  0.4277 
-    #> F-statistic: 4.364 on 2 and 7 DF,  p-value: 0.05883
-
-![](README_files/figure-gfm/unnamed-chunk-6-32.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-33.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-34.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-6-35.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-7.png)<!-- -->
 
 ## Estatística descritiva do banco de dados
 
@@ -316,12 +241,11 @@ skim(dados)
 |:-------------------------------------------------|:------|
 | Name                                             | dados |
 | Number of rows                                   | 1415  |
-| Number of columns                                | 13    |
+| Number of columns                                | 12    |
 | \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_   |       |
 | Column type frequency:                           |       |
 | character                                        | 2     |
 | numeric                                          | 10    |
-| POSIXct                                          | 1     |
 | \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ |       |
 | Group variables                                  | None  |
 
@@ -338,22 +262,16 @@ Data summary
 
 | skim\_variable           | n\_missing | complete\_rate |    mean |     sd |      p0 |     p25 |     p50 |     p75 |    p100 | hist  |
 |:-------------------------|-----------:|---------------:|--------:|-------:|--------:|--------:|--------:|--------:|--------:|:------|
-| repeticao                |          0 |           1.00 |    8.43 |   4.56 |    1.00 |    4.00 |    8.00 |   12.00 |   16.00 | ▇▆▆▆▆ |
-| nivel\_de\_fosforo\_disp |          0 |           1.00 |    0.34 |   0.14 |    0.10 |    0.20 |    0.44 |    0.45 |    0.47 | ▃▂▁▂▇ |
-| resistencia\_kgf         |          3 |           1.00 |    3.63 |   0.85 |    0.89 |    3.08 |    3.67 |    4.20 |    6.64 | ▁▅▇▃▁ |
-| frequencia\_ressonante   |          0 |           1.00 | 5374.87 | 661.59 | 2529.00 | 4962.50 | 5252.00 | 5574.50 | 8764.00 | ▁▅▇▁▁ |
-| shape\_index             |          0 |           1.00 |   75.07 |   3.01 |   63.26 |   73.12 |   74.91 |   76.93 |   94.01 | ▁▇▆▁▁ |
-| peso\_g                  |          0 |           1.00 |   63.01 |   4.83 |   48.10 |   59.40 |   62.90 |   66.30 |   83.00 | ▁▇▇▂▁ |
-| altura\_de\_albumen      |          0 |           1.00 |    6.63 |   1.27 |    3.10 |    5.80 |    6.50 |    7.30 |   16.40 | ▂▇▁▁▁ |
-| uh                       |          0 |           1.00 |   79.45 |   8.66 |   39.70 |   74.30 |   80.00 |   84.80 |  120.60 | ▁▂▇▂▁ |
-| espessura\_mm            |          9 |           0.99 |    0.36 |   0.03 |    0.25 |    0.35 |    0.36 |    0.38 |    0.46 | ▁▂▇▃▁ |
-| dia                      |          0 |           1.00 |   30.17 |  20.95 |    1.00 |   15.00 |   30.00 |   45.00 |   60.00 | ▇▇▇▇▇ |
-
-**Variable type: POSIXct**
-
-| skim\_variable | n\_missing | complete\_rate | min        | max        | median     | n\_unique |
-|:---------------|-----------:|---------------:|:-----------|:-----------|:-----------|----------:|
-| data           |          0 |              1 | 2021-05-14 | 2021-07-09 | 2021-06-10 |        11 |
+| dia                      |          0 |              1 |   30.17 |  20.95 |    1.00 |   15.00 |   30.00 |   45.00 |   60.00 | ▇▇▇▇▇ |
+| repeticao                |          0 |              1 |    8.43 |   4.56 |    1.00 |    4.00 |    8.00 |   12.00 |   16.00 | ▇▆▆▆▆ |
+| nivel\_de\_fosforo\_disp |          0 |              1 |    0.34 |   0.14 |    0.10 |    0.20 |    0.44 |    0.45 |    0.47 | ▃▂▁▂▇ |
+| resistencia\_kgf         |          0 |              1 |    3.63 |   0.85 |    0.89 |    3.08 |    3.67 |    4.20 |    6.64 | ▁▅▇▃▁ |
+| frequencia\_ressonante   |          0 |              1 | 5374.87 | 661.59 | 2529.00 | 4962.50 | 5252.00 | 5574.50 | 8764.00 | ▁▅▇▁▁ |
+| shape\_index             |          0 |              1 |   75.07 |   3.01 |   63.26 |   73.12 |   74.91 |   76.93 |   94.01 | ▁▇▆▁▁ |
+| peso\_g                  |          0 |              1 |   63.01 |   4.83 |   48.10 |   59.40 |   62.90 |   66.30 |   83.00 | ▁▇▇▂▁ |
+| altura\_de\_albumen      |          0 |              1 |    6.63 |   1.27 |    3.10 |    5.80 |    6.50 |    7.30 |   16.40 | ▂▇▁▁▁ |
+| uh                       |          0 |              1 |   79.45 |   8.66 |   39.70 |   74.30 |   80.00 |   84.80 |  120.60 | ▁▂▇▂▁ |
+| espessura\_mm            |          0 |              1 |    0.36 |   0.03 |    0.25 |    0.35 |    0.36 |    0.38 |    0.46 | ▁▂▇▃▁ |
 
 ## Gráfico de linhas
 
@@ -375,9 +293,9 @@ for(i in 1:length(parametros)){
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-7.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-7.png)<!-- -->
 
-\#\#\# Independent do dia
+### Independente do dia
 
 ``` r
 for(i in 1:length(parametros)){
@@ -396,7 +314,7 @@ for(i in 1:length(parametros)){
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-9-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-9-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-9-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-9-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-9-7.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-7.png)<!-- -->
 
 ## Matriz de correlação para linhagem **DEKALB**
 
@@ -404,15 +322,17 @@ for(i in 1:length(parametros)){
 classes<-c("medio", "grande")
 for(i in 1:2){
   dados  |>
-    filter(linhagem == "Dekalb", class_peso == classes[i]) |>
+    filter(linhagem == "Dekalb", 
+           class_peso == classes[i],
+           dia <= 30) |>
     drop_na() |> 
     select(resistencia_kgf:espessura_mm)  |>
     cor(use = "p")  |>
-    corrplot::corrplot()
+    corrplot::corrplot.mixed(lower.col = "black")
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
 
 ### Classe peso do ovo = **MEDIO**
 
@@ -423,7 +343,7 @@ dados |>
   ggpairs()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 ### Classe peso do ovo = **GRANDE**
 
@@ -434,7 +354,7 @@ dados |>
   ggpairs()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 ## Matriz de correlação para linhagem **H&N**
 
@@ -445,11 +365,11 @@ for(i in 1:2){
     drop_na() |> 
     select(resistencia_kgf:espessura_mm)  |>
     cor(use = "p")  |>
-    corrplot::corrplot()
+    corrplot:::corrplot.mixed(lower.col = "black")
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
 
 ### Classe peso do ovo = **MEDIO**
 
@@ -460,7 +380,7 @@ dados |>
   ggpairs()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ### Classe peso do ovo = **GRANDE**
 
@@ -471,7 +391,7 @@ dados |>
   ggpairs()
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ## Análise de variância
 
@@ -506,18 +426,18 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL     SQ       QM     Fc   Pr>Fc
-#> Linhagem          1 0.2411 0.241101 3.3388 0.07126
-#> Fosforo           5 0.3081 0.061617 0.8533 0.51614
-#> Linhagem*Fosforo  5 0.7906 0.158115 2.1896 0.06305
-#> Residuo          83 5.9936 0.072212               
-#> Total            94 7.3334                        
+#>                  GL     SQ      QM     Fc   Pr>Fc
+#> Linhagem          1 0.2437 0.24371 3.3887 0.06922
+#> Fosforo           5 0.3078 0.06157 0.8561 0.51425
+#> Linhagem*Fosforo  5 0.7758 0.15516 2.1575 0.06661
+#> Residuo          83 5.9694 0.07192               
+#> Total            94 7.2968                       
 #> ------------------------------------------------------------------------
-#> CV = 7.4 %
+#> CV = 7.38 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.9283092 
+#> valor-p:  0.927956 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
@@ -527,17 +447,17 @@ for(i in 1:length(parametros)){
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
 #>   Niveis   Medias
-#> 1 Dekalb 3.682069
-#> 2      H 3.581308
+#> 1 Dekalb 3.682743
+#> 2      H 3.581438
 #> ------------------------------------------------------------------------
 #> Fosforo
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> 
 #> ------------------------------------------------------------------------
 #>   Niveis   Medias
-#> 1  0.105 3.526496
+#> 1  0.105 3.526601
 #> 2    0.2 3.598164
-#> 3  0.391 3.628860
+#> 3  0.391 3.631280
 #> 4  0.438 3.698375
 #> 5  0.454 3.661955
 #> 6  0.466 3.672952
@@ -1586,17 +1506,17 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                  GL        SQ         QM     Fc    Pr>Fc
-#> Linhagem          1 0.0004867 0.00048674 4.3384 0.040339
-#> Fosforo           5 0.0009184 0.00018369 1.6372 0.159225
-#> Linhagem*Fosforo  5 0.0007240 0.00014481 1.2907 0.275801
-#> Residuo          83 0.0093120 0.00011219                
-#> Total            94 0.0114412                           
+#> Linhagem          1 0.0005000 0.00049996 4.5069 0.036737
+#> Fosforo           5 0.0009113 0.00018227 1.6431 0.157715
+#> Linhagem*Fosforo  5 0.0007345 0.00014690 1.3243 0.261911
+#> Residuo          83 0.0092072 0.00011093                
+#> Total            94 0.0113530                           
 #> ------------------------------------------------------------------------
-#> CV = 2.93 %
+#> CV = 2.92 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.8753472 
+#> valor-p:  0.863119 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
@@ -1607,7 +1527,7 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
 #> a     H   0.3632209 
-#>  b    Dekalb      0.3586936 
+#>  b    Dekalb      0.3586326 
 #> ------------------------------------------------------------------------
 #> 
 #> Fosforo
@@ -1617,8 +1537,8 @@ for(i in 1:length(parametros)){
 #>   Niveis    Medias
 #> 1  0.105 0.3649587
 #> 2    0.2 0.3600437
-#> 3  0.391 0.3627094
-#> 4  0.438 0.3616815
+#> 3  0.391 0.3625939
+#> 4  0.438 0.3616105
 #> 5  0.454 0.3548720
 #> 6  0.466 0.3617292
 #> ------------------------------------------------------------------------
@@ -1660,21 +1580,21 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                       GL        SQ      QM     Fc  Pr>Fc
-#> Dia                    4   6.07451 1.51863 6.0697  1e-04
-#> Linhagem               1   1.14109 1.14109 4.5607 0.0333
-#> Fosforo                5   1.61671 0.32334 1.2923 0.2662
-#> Dia*Linhagem           4   0.37204 0.09301 0.3717 0.8288
-#> Dia*Fosforo           20   2.79358 0.13968 0.5583 0.9393
-#> Linhagem*Fosforo       5   3.88469 0.77694 3.1053 0.0092
-#> Dia*Linhagem*Fosforo  20   3.91230 0.19561 0.7818 0.7363
-#> Residuo              415 103.83288  0.2502              
-#> Total                474 123.62781                      
+#> Dia                    4   6.21371 1.55343  6.239  1e-04
+#> Linhagem               1   1.17746 1.17746  4.729 0.0302
+#> Fosforo                5   1.59885 0.31977 1.2843 0.2696
+#> Dia*Linhagem           4   0.34964 0.08741 0.3511 0.8433
+#> Dia*Fosforo           20   2.84790 0.14239 0.5719 0.9314
+#> Linhagem*Fosforo       5   3.79040 0.75808 3.0447 0.0103
+#> Dia*Linhagem*Fosforo  20   3.91535 0.19577 0.7863  0.731
+#> Residuo              415 103.32976 0.24899              
+#> Total                474 123.22306                      
 #> ------------------------------------------------------------------------
-#> CV = 13.78 %
+#> CV = 13.74 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.1252214 
+#> valor-p:  0.173182 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
@@ -1689,13 +1609,13 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                         GL        SQ      QM     Fc  Pr>Fc
-#> Linhagem:Fosforo 0.105   1   2.14895 2.14895 8.5889 0.0036
-#> Linhagem:Fosforo 0.2     1   0.02598 0.02598 0.1038 0.7474
-#> Linhagem:Fosforo 0.391   1   0.91032 0.91032 3.6384 0.0572
-#> Linhagem:Fosforo 0.438   1   0.00435 0.00435 0.0174 0.8951
-#> Linhagem:Fosforo 0.454   1   1.11904 1.11904 4.4726  0.035
-#> Linhagem:Fosforo 0.466   1   0.81574 0.81574 3.2604 0.0717
-#> Residuo                415 103.83288 0.25020              
+#> Linhagem:Fosforo 0.105   1   2.16523 2.16523 8.6961 0.0034
+#> Linhagem:Fosforo 0.2     1   0.02598 0.02598 0.1043 0.7468
+#> Linhagem:Fosforo 0.391   1   0.83779 0.83779 3.3648 0.0673
+#> Linhagem:Fosforo 0.438   1   0.00435 0.00435 0.0175 0.8949
+#> Linhagem:Fosforo 0.454   1   1.11904 1.11904 4.4944 0.0346
+#> Linhagem:Fosforo 0.466   1   0.81574 0.81574 3.2762  0.071
+#> Residuo                415 103.32976 0.24899              
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1705,8 +1625,8 @@ for(i in 1:length(parametros)){
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     Dekalb      3.688125 
-#>  b    H   3.360333 
+#> a     Dekalb      3.689795 
+#>  b    H   3.360764 
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1725,7 +1645,7 @@ for(i in 1:length(parametros)){
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
 #>     Niveis     Medias
-#> 1   Dekalb   3.509000
+#> 1   Dekalb   3.517981
 #> 2        H   3.729833
 #> ------------------------------------------------------------------------
 #> 
@@ -1767,9 +1687,9 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                          GL        SQ      QM     Fc  Pr>Fc
-#> Fosforo:Linhagem Dekalb   5   1.99219 0.39844 1.5925  0.161
-#> Fosforo:Linhagem H&N      5   3.50921 0.70184 2.8051 0.0166
-#> Residuo                 415 103.83288 0.25020              
+#> Fosforo:Linhagem Dekalb   5   1.88769 0.37754 1.5163 0.1835
+#> Fosforo:Linhagem H&N      5   3.50155 0.70031 2.8126 0.0164
+#> Residuo                 415 103.32976 0.24899              
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1779,9 +1699,9 @@ for(i in 1:length(parametros)){
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
 #>     Niveis     Medias
-#> 1    0.105   3.688125
+#> 1    0.105   3.689795
 #> 2      0.2   3.614750
-#> 3    0.391   3.509000
+#> 3    0.391   3.517981
 #> 4    0.438   3.691000
 #> 5    0.454   3.781500
 #> 6    0.466   3.777333
@@ -1797,24 +1717,24 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   3.3841     0.0858    39.4221    0   
-#> b1   0.5796     0.2323    2.4945  0.0130 
+#> b0   3.3845     0.0856    39.5223    0   
+#> b1   0.5787     0.2318    2.4967  0.0129 
 #> -----------------------------------------
 #> 
 #> R2 do modelo linear
 #> --------
 #>   H&N   
 #> --------
-#> 0.443650
+#> 0.443266
 #> --------
 #> 
 #> Analise de variancia do modelo linear
 #> =====================================================
 #>                      GL     SQ      QM    Fc  valor.p
 #> -----------------------------------------------------
-#> Efeito linear         1   1.5569  1.5569 6.22  0.013 
-#> Desvios de Regressao  4   1.9524  0.4881 1.95 0.10121
-#> Residuos             415 103.8329 0.2502             
+#> Efeito linear         1   1.5521  1.5521 6.23 0.01292
+#> Desvios de Regressao  4   1.9494  0.4874 1.96 0.10017
+#> Residuos             415 103.3298 0.2490             
 #> -----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -1822,26 +1742,26 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   2.8779     0.2214    12.9955    0   
-#> b1   5.2882     1.9130    2.7644  0.0060 
-#> b2  -8.1001     3.2665    -2.4797 0.0135 
+#> b0   2.8788     0.2209    13.0314    0   
+#> b1   5.2819     1.9083    2.7678  0.0059 
+#> b2  -8.0909     3.2586    -2.4830 0.0134 
 #> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
 #> --------
 #>   H&N   
 #> --------
-#> 0.882071
+#> 0.881650
 #> --------
 #> 
 #> Analise de variancia do modelo quadratico
 #> =====================================================
 #>                      GL     SQ      QM    Fc  valor.p
 #> -----------------------------------------------------
-#> Efeito linear         1   1.5569  1.5569 6.22  0.013 
-#> Efeito quadratico     1   1.5385  1.5385 6.15 0.01354
-#> Desvios de Regressao  3   0.4138  0.1379 0.55 0.64749
-#> Residuos             415 103.8329 0.2502             
+#> Efeito linear         1   1.5521  1.5521 6.23 0.01292
+#> Efeito quadratico     1   1.5350  1.5350 6.17 0.01342
+#> Desvios de Regressao  3   0.4144  0.1381 0.55 0.64518
+#> Residuos             415 103.3298 0.2490             
 #> -----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -1849,28 +1769,28 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   3.1949     0.4714    6.7772     0   
-#> b1   0.7699     6.2320    0.1235  0.9017 
-#> b2   9.9682     23.9423   0.4164  0.6774 
-#> b3  -21.3385    28.0111   -0.7618 0.4466 
+#> b0   3.1965     0.4703    6.7971     0   
+#> b1   0.7545     6.2168    0.1214  0.9035 
+#> b2  10.0142     23.8842   0.4193  0.6752 
+#> b3  -21.3819    27.9432   -0.7652 0.4446 
 #> -----------------------------------------
 #> 
 #> R2 do modelo cubico
 #> --------
 #>   H&N   
 #> --------
-#> 0.923446
+#> 0.923285
 #> --------
 #> 
 #> Analise de variancia do modelo cubico
 #> =====================================================
 #>                      GL     SQ      QM    Fc  valor.p
 #> -----------------------------------------------------
-#> Efeito linear         1   1.5569  1.5569 6.22  0.013 
-#> Efeito quadratico     1   1.5385  1.5385 6.15 0.01354
-#> Efeito cubico         1   0.1452  0.1452 0.58 0.44662
-#> Desvios de Regressao  2   0.2686  0.1343 0.54 0.58499
-#> Residuos             415 103.8329 0.2502             
+#> Efeito linear         1   1.5521  1.5521 6.23 0.01292
+#> Efeito quadratico     1   1.5350  1.5350 6.17 0.01342
+#> Efeito cubico         1   0.1458  0.1458 0.59 0.44459
+#> Desvios de Regressao  2   0.2686  0.1343 0.54 0.58349
+#> Residuos             415 103.3298 0.2490             
 #> -----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -1880,7 +1800,7 @@ for(i in 1:length(parametros)){
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     1   3.804018 
+#> a     1   3.808211 
 #> ab    15      3.658649 
 #> abc   30      3.640789 
 #>  bc   45      3.599895 
@@ -4830,21 +4750,21 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                       GL      SQ      QM     Fc  Pr>Fc
-#> Dia                    4 0.00582 0.00146 5.2478  4e-04
-#> Linhagem               1 0.00239 0.00239 8.6337 0.0035
-#> Fosforo                5 0.00475 0.00095 3.4234 0.0048
-#> Dia*Linhagem           4 0.00206 0.00052 1.8577  0.117
-#> Dia*Fosforo           20 0.00461 0.00023 0.8314 0.6753
-#> Linhagem*Fosforo       5 0.00360 0.00072 2.5963  0.025
-#> Dia*Linhagem*Fosforo  20 0.00480 0.00024 0.8651 0.6324
-#> Residuo              415 0.11507 0.00028              
-#> Total                474 0.14309                      
+#> Dia                    4 0.00578 0.00145 5.3007  4e-04
+#> Linhagem               1 0.00238 0.00238 8.7092 0.0033
+#> Fosforo                5 0.00475 0.00095 3.4868 0.0042
+#> Dia*Linhagem           4 0.00205 0.00051 1.8816 0.1127
+#> Dia*Fosforo           20 0.00460 0.00023 0.8429 0.6608
+#> Linhagem*Fosforo       5 0.00359 0.00072 2.6295 0.0235
+#> Dia*Linhagem*Fosforo  20 0.00479 0.00024 0.8776 0.6163
+#> Residuo              415 0.11319 0.00027              
+#> Total                474 0.14112                      
 #> ------------------------------------------------------------------------
-#> CV = 4.61 %
+#> CV = 4.58 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.2698047 
+#> valor-p:  0.2652104 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
@@ -4859,13 +4779,13 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                         GL      SQ      QM      Fc  Pr>Fc
-#> Linhagem:Fosforo 0.105   1 0.00011 0.00011   0.414 0.5203
-#> Linhagem:Fosforo 0.2     1 0.00319 0.00319 11.4972  8e-04
-#> Linhagem:Fosforo 0.391   1 0.00168 0.00168  6.0531 0.0143
-#> Linhagem:Fosforo 0.438   1 0.00072 0.00072  2.5968 0.1078
-#> Linhagem:Fosforo 0.454   1 0.00000 0.00000   0.002 0.9643
-#> Linhagem:Fosforo 0.466   1 0.00026 0.00026  0.9262 0.3364
-#> Residuo                415 0.11507 0.00028               
+#> Linhagem:Fosforo 0.105   1 0.00011 0.00011  0.4209 0.5168
+#> Linhagem:Fosforo 0.2     1 0.00319 0.00319 11.6883  7e-04
+#> Linhagem:Fosforo 0.391   1 0.00166 0.00166  6.0826 0.0141
+#> Linhagem:Fosforo 0.438   1 0.00071 0.00071  2.5923 0.1081
+#> Linhagem:Fosforo 0.454   1 0.00000 0.00000   0.002  0.964
+#> Linhagem:Fosforo 0.466   1 0.00026 0.00026  0.9416 0.3324
+#> Residuo                415 0.11319 0.00027               
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4896,7 +4816,7 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
 #> a     H   0.3669583 
-#>  b    Dekalb      0.3574762 
+#>  b    Dekalb      0.3575311 
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4905,7 +4825,7 @@ for(i in 1:length(parametros)){
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
 #>     Niveis     Medias
-#> 1   Dekalb  0.3585833
+#> 1   Dekalb  0.3586377
 #> 2        H  0.3645833
 #> ------------------------------------------------------------------------
 #> 
@@ -4937,9 +4857,9 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                          GL      SQ      QM     Fc  Pr>Fc
-#> Fosforo:Linhagem Dekalb   5 0.00375 0.00075 2.7052 0.0202
-#> Fosforo:Linhagem H&N      5 0.00459 0.00092 3.3144  0.006
-#> Residuo                 415 0.11507 0.00028              
+#> Fosforo:Linhagem Dekalb   5 0.00375 0.00075 2.7468 0.0187
+#> Fosforo:Linhagem H&N      5 0.00459 0.00092 3.3695 0.0054
+#> Residuo                 415 0.11319 0.00027              
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -4953,24 +4873,24 @@ for(i in 1:length(parametros)){
 #> ==========================================
 #>    Estimativa Erro.padrao    tc    valor.p
 #> ------------------------------------------
-#> b0   0.3599     0.0029    125.9210    0   
-#> b1  -0.0035     0.0077    -0.4584  0.6469 
+#> b0   0.3598     0.0028    126.9607    0   
+#> b1  -0.0035     0.0077    -0.4535  0.6504 
 #> ------------------------------------------
 #> 
 #> R2 do modelo linear
 #> --------
 #>  Dekalb 
 #> --------
-#> 0.015533
+#> 0.014977
 #> --------
 #> 
 #> Analise de variancia do modelo linear
 #> ===================================================
 #>                      GL    SQ     QM    Fc  valor.p
 #> ---------------------------------------------------
-#> Efeito linear         1  0.0001 0.0001 0.21 0.64694
-#> Desvios de Regressao  4  0.0037 0.0009 3.33 0.01062
-#> Residuos             415 0.1151 0.0003             
+#> Efeito linear         1  0.0001 0.0001 0.21 0.6504 
+#> Desvios de Regressao  4  0.0037 0.0009 3.38 0.00971
+#> Residuos             415 0.1132 0.0003             
 #> ---------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -4978,26 +4898,26 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   0.3787     0.0075    50.7088    0   
-#> b1  -0.1791     0.0648    -2.7664 0.0059 
-#> b2   0.3017     0.1105    2.7312  0.0066 
+#> b0   0.3786     0.0074    51.1183    0   
+#> b1  -0.1784     0.0642    -2.7784 0.0057 
+#> b2   0.3006     0.1096    2.7439  0.0063 
 #> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
 #> --------
 #>  Dekalb 
 #> --------
-#> 0.567044
+#> 0.563187
 #> --------
 #> 
 #> Analise de variancia do modelo quadratico
 #> ===================================================
 #>                      GL    SQ     QM    Fc  valor.p
 #> ---------------------------------------------------
-#> Efeito linear         1  0.0001 0.0001 0.21 0.64694
-#> Efeito quadratico     1  0.0021 0.0021 7.46 0.00658
-#> Desvios de Regressao  3  0.0016 0.0005 1.95 0.12059
-#> Residuos             415 0.1151 0.0003             
+#> Efeito linear         1  0.0001 0.0001 0.21 0.6504 
+#> Efeito quadratico     1  0.0021 0.0021 7.53 0.00634
+#> Desvios de Regressao  3  0.0016 0.0006  2   0.11341
+#> Residuos             415 0.1132 0.0003             
 #> ---------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -5005,28 +4925,28 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   0.3892     0.0158    24.6092    0   
-#> b1  -0.3299     0.2101    -1.5699 0.1172 
-#> b2   0.9094     0.8133    1.1182  0.2641 
-#> b3  -0.7216     0.9568    -0.7542 0.4512 
+#> b0   0.3894     0.0157    24.8228    0   
+#> b1  -0.3325     0.2084    -1.5954 0.1114 
+#> b2   0.9216     0.8066    1.1426  0.2538 
+#> b3  -0.7375     0.9490    -0.7771 0.4375 
 #> -----------------------------------------
 #> 
 #> R2 do modelo cubico
 #> --------
 #>  Dekalb 
 #> --------
-#> 0.609098
+#> 0.607162
 #> --------
 #> 
 #> Analise de variancia do modelo cubico
 #> ===================================================
 #>                      GL    SQ     QM    Fc  valor.p
 #> ---------------------------------------------------
-#> Efeito linear         1  0.0001 0.0001 0.21 0.64694
-#> Efeito quadratico     1  0.0021 0.0021 7.46 0.00658
-#> Efeito cubico         1  0.0002 0.0002 0.57 0.45116
-#> Desvios de Regressao  2  0.0015 0.0007 2.64 0.0723 
-#> Residuos             415 0.1151 0.0003             
+#> Efeito linear         1  0.0001 0.0001 0.21 0.6504 
+#> Efeito quadratico     1  0.0021 0.0021 7.53 0.00634
+#> Efeito cubico         1  0.0002 0.0002 0.6  0.43753
+#> Desvios de Regressao  2  0.0015 0.0007 2.7  0.06855
+#> Residuos             415 0.1132 0.0003             
 #> ---------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -5040,8 +4960,8 @@ for(i in 1:length(parametros)){
 #> ==========================================
 #>    Estimativa Erro.padrao    tc    valor.p
 #> ------------------------------------------
-#> b0   0.3695     0.0029    129.3174    0   
-#> b1  -0.0187     0.0077    -2.4235  0.0158 
+#> b0   0.3695     0.0028    130.3870    0   
+#> b1  -0.0187     0.0077    -2.4435  0.0150 
 #> ------------------------------------------
 #> 
 #> R2 do modelo linear
@@ -5055,9 +4975,9 @@ for(i in 1:length(parametros)){
 #> ===================================================
 #>                      GL    SQ     QM    Fc  valor.p
 #> ---------------------------------------------------
-#> Efeito linear         1  0.0016 0.0016 5.87 0.0158 
-#> Desvios de Regressao  4  0.0030 0.0007 2.67 0.03161
-#> Residuos             415 0.1151 0.0003             
+#> Efeito linear         1  0.0016 0.0016 5.97 0.01496
+#> Desvios de Regressao  4  0.0030 0.0007 2.72 0.02938
+#> Residuos             415 0.1132 0.0003             
 #> ---------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -5065,9 +4985,9 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   0.3572     0.0074    48.4471    0   
-#> b1   0.0965     0.0637    1.5154  0.1304 
-#> b2  -0.1983     0.1087    -1.8233 0.0690 
+#> b0   0.3572     0.0073    48.8477    0   
+#> b1   0.0965     0.0632    1.5280  0.1273 
+#> b2  -0.1983     0.1078    -1.8384 0.0667 
 #> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
@@ -5081,10 +5001,10 @@ for(i in 1:length(parametros)){
 #> ===================================================
 #>                      GL    SQ     QM    Fc  valor.p
 #> ---------------------------------------------------
-#> Efeito linear         1  0.0016 0.0016 5.87 0.0158 
-#> Efeito quadratico     1  0.0009 0.0009 3.32 0.06898
-#> Desvios de Regressao  3  0.0020 0.0007 2.46 0.06243
-#> Residuos             415 0.1151 0.0003             
+#> Efeito linear         1  0.0016 0.0016 5.97 0.01496
+#> Efeito quadratico     1  0.0009 0.0009 3.38 0.06672
+#> Desvios de Regressao  3  0.0020 0.0007 2.5  0.05916
+#> Residuos             415 0.1132 0.0003             
 #> ---------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -5092,10 +5012,10 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   0.3780     0.0157    24.0896    0   
-#> b1  -0.2012     0.2075    -0.9699 0.3327 
-#> b2   0.9923     0.7970    1.2450  0.2138 
-#> b3  -1.4061     0.9325    -1.5079 0.1324 
+#> b0   0.3780     0.0156    24.2888    0   
+#> b1  -0.2012     0.2058    -0.9779 0.3287 
+#> b2   0.9923     0.7905    1.2553  0.2101 
+#> b3  -1.4061     0.9248    -1.5203 0.1292 
 #> -----------------------------------------
 #> 
 #> R2 do modelo cubico
@@ -5109,11 +5029,11 @@ for(i in 1:length(parametros)){
 #> ===================================================
 #>                      GL    SQ     QM    Fc  valor.p
 #> ---------------------------------------------------
-#> Efeito linear         1  0.0016 0.0016 5.87 0.0158 
-#> Efeito quadratico     1  0.0009 0.0009 3.32 0.06898
-#> Efeito cubico         1  0.0006 0.0006 2.27 0.13235
-#> Desvios de Regressao  2  0.0014 0.0007 2.55 0.0793 
-#> Residuos             415 0.1151 0.0003             
+#> Efeito linear         1  0.0016 0.0016 5.97 0.01496
+#> Efeito quadratico     1  0.0009 0.0009 3.38 0.06672
+#> Efeito cubico         1  0.0006 0.0006 2.31 0.12919
+#> Desvios de Regressao  2  0.0014 0.0007 2.59 0.07605
+#> Residuos             415 0.1132 0.0003             
 #> ---------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -5127,6 +5047,106 @@ for(i in 1:length(parametros)){
 #> ab    45      0.3624737 
 #>  b    15      0.359807 
 #>  b    30      0.3592281 
-#>  b    60      0.3563246 
+#>  b    60      0.3563677 
 #> ------------------------------------------------------------------------
 ```
+
+## Análise de correlação desconsiderando o efeito dos tratamentos
+
+``` r
+names(dados)
+#>  [1] "dia"                   "repeticao"             "linhagem"             
+#>  [4] "nivel_de_fosforo_disp" "class_peso"            "resistencia_kgf"      
+#>  [7] "frequencia_ressonante" "shape_index"           "peso_g"               
+#> [10] "altura_de_albumen"     "uh"                    "espessura_mm"
+parametros
+#> [1] "resistencia_kgf"       "frequencia_ressonante" "shape_index"          
+#> [4] "peso_g"                "altura_de_albumen"     "uh"                   
+#> [7] "espessura_mm"
+dados_rs <- dados
+for(i in 6:12){
+  lin<-dados$linhagem
+  pd <- dados$nivel_de_fosforo_disp
+  dia <- forcats::as_factor(dados$dia)
+  trat <- paste0(lin,"_",pd)
+  trat <- forcats::as_factor(trat)
+  y <- dados[i] |>  pull()
+  sum(is.na(y))
+  
+  mod <- aov(y~trat*dia)
+  anova(mod)
+  rs <- rstudent(mod)
+  yp <- predict(mod)
+  dados_rs[,i] <- rs
+}
+
+dados_rs  |> 
+  select(resistencia_kgf:espessura_mm)  |>
+  cor(use = "p")  |>
+  corrplot::corrplot.mixed(lower.col = "black")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+
+## Análise de correlação por tratamento
+
+``` r
+dados$Tratamento <- paste0(dados$linhagem,"_",
+                           dados$nivel_de_fosforo_disp)
+tratamentos = unique(dados$Tratamento)
+for(i in 1:length(tratamentos)){
+  print(tratamentos[i])
+  dados  |>
+    filter(Tratamento == tratamentos[i]) |>  
+    select(resistencia_kgf:espessura_mm)  |>
+    cor(use = "p")  |>
+    corrplot::corrplot.mixed(lower.col = "black")
+}
+#> [1] "H&N_0.391"
+```
+
+![](README_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+    #> [1] "H&N_0.105"
+
+![](README_files/figure-gfm/unnamed-chunk-21-2.png)<!-- -->
+
+    #> [1] "H&N_0.2"
+
+![](README_files/figure-gfm/unnamed-chunk-21-3.png)<!-- -->
+
+    #> [1] "H&N_0.454"
+
+![](README_files/figure-gfm/unnamed-chunk-21-4.png)<!-- -->
+
+    #> [1] "H&N_0.466"
+
+![](README_files/figure-gfm/unnamed-chunk-21-5.png)<!-- -->
+
+    #> [1] "H&N_0.438"
+
+![](README_files/figure-gfm/unnamed-chunk-21-6.png)<!-- -->
+
+    #> [1] "Dekalb_0.391"
+
+![](README_files/figure-gfm/unnamed-chunk-21-7.png)<!-- -->
+
+    #> [1] "Dekalb_0.105"
+
+![](README_files/figure-gfm/unnamed-chunk-21-8.png)<!-- -->
+
+    #> [1] "Dekalb_0.2"
+
+![](README_files/figure-gfm/unnamed-chunk-21-9.png)<!-- -->
+
+    #> [1] "Dekalb_0.454"
+
+![](README_files/figure-gfm/unnamed-chunk-21-10.png)<!-- -->
+
+    #> [1] "Dekalb_0.466"
+
+![](README_files/figure-gfm/unnamed-chunk-21-11.png)<!-- -->
+
+    #> [1] "Dekalb_0.438"
+
+![](README_files/figure-gfm/unnamed-chunk-21-12.png)<!-- -->

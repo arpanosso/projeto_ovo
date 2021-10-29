@@ -43,26 +43,6 @@ table(dados$class_peso)
 ```
 
 
-- seleção das variáveis para a análise.
-
-```{r, message=FALSE, error=FALSE, warning=FALSE}
-dados <- dados |>
-  select(data,
-         repeticao,
-         linhagem,
-         nivel_de_fosforo_disp,
-         class_peso,
-         resistencia_kgf,
-         frequencia_ressonante,
-         shape_index,
-         peso_g,
-         altura_de_albumen,
-         uh,
-         espessura_mm
-         ) #|> 
-  # mutate(log_frequencia_ressonante = log(frequencia_ressonante))
-```
-
 - lidando com os valores perdidos de `resistencia_kgf`;
 - definindo as datas da amostragem.
 
@@ -83,13 +63,101 @@ dados <-dados |>
 dplyr::glimpse(dados)
 ```
 
+- seleção das variáveis para a análise.
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados <- dados |>
+  select(dia,
+         repeticao,
+         linhagem,
+         nivel_de_fosforo_disp,
+         class_peso,
+         resistencia_kgf,
+         frequencia_ressonante,
+         shape_index,
+         peso_g,
+         altura_de_albumen,
+         uh,
+         espessura_mm
+         ) #|> 
+  # mutate(log_frequencia_ressonante = log(frequencia_ressonante))
+```
+
+## Corrigindo os outliers
+
+- definindo uma função para o input de valores perdidos a partir da média do tratamento (Pd e Linhage).
+
+```{r}
+input_na <- function(y,trat){
+  df <- tibble(trat, y)
+  vl <- is.na(y)
+  df <- df[vl,]
+  if(nrow(df) != 0){
+    vetor_medias <- tapply(y,trat,mean,na.rm=TRUE)
+    for(j in 1:nrow(df)){
+      df[j,2] <- 
+      vetor_medias[which(df$trat[j] == names(vetor_medias))]
+    }
+  }
+  return(df$y)
+}
+```
+
+
+
+```{r}
+dias <- unique(dados$dia)
+linhagens <- unique(dados$linhagem)
+for(k in 6:length(dados)){ # para cada variável no BD
+  for(i in seq_along(dias)){
+    da <- dados |>
+      filter(dia == dias[i])
+    Pd <- da$nivel_de_fosforo_disp
+    Pd <- forcats::as_factor(Pd)
+    Lin <- da$linhagem
+    Lin <- forcats::as_factor(Lin)
+    trat <- paste0(Lin,"_",Pd)
+    y<-da[k] |>  pull()
+    y[is.na(y)] <- input_na(y, trat)
+    
+    # boxplot_original <- tibble(trat,y) |>
+    #   ggplot(aes(x=y, y=trat)) +
+    #   geom_boxplot() +
+    #   labs(title = paste0("ORIGINAL - Dia: ", dias[i],"; Variável: ",names(dados[k])))
+    # print(boxplot_original)
+    
+    mod <- aov(y~trat)
+    rs<-rstudent(mod)
+    yp <- predict(mod)
+    
+    li<-quantile(rs, .25) - IQR(rs) *1.5
+    ls<-quantile(rs, .75) + IQR(rs) *1.5
+    # print({
+    #   plot(rs ~yp)
+    #   abline(h=c(li, ls), lty=2, col="red")
+    # })
+    regra <- rs >= ls | rs <= li
+    da[da$dia == dias[i] & regra, k] <- yp[regra]
+    
+    # y <- da[k] |> pull()
+    # boxplot_arrumado<-tibble(trat,y) |>
+    #   ggplot(aes(x=y, y=trat)) +
+    #   geom_boxplot() +
+    #   labs(title = paste0("TRATADA - Dia: ", dias[i],"; Variável: ",names(dados[k])))
+    # print(boxplot_arrumado)
+    dados[dados$dia == dias[i],k] <- y
+    
+  }
+}
+```
+
 
 ## Análise de regressão linear 
 
 A análise foi realizada independete dos tratamentos para descrever o comportamento das variáveis ao longo do dias por linhagem.
 
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
-parametros <- names(dados)[6:(length(dados)-1)]
+parametros <- names(dados)[6:(length(dados))]
 
 for(i in 1:length(parametros)){
   da <- dados |>
@@ -105,13 +173,13 @@ for(i in 1:length(parametros)){
     # facet_wrap(~class_peso)
   print(plot)
 
-  tab <- da |>
-    dplyr::group_by(dia,linhagem) |>
-    dplyr::summarise(y=mean(y, na.rm=TRUE))
-  
-  mod <- lm(y~dia + linhagem, data=tab)
-  print(summary.lm(mod))
-  plot(mod)
+  # tab <- da |>
+  #   dplyr::group_by(dia,linhagem) |>
+  #   dplyr::summarise(y=mean(y, na.rm=TRUE))
+  # 
+  # mod <- lm(y~dia + linhagem, data=tab)
+  # print(summary.lm(mod))
+  # plot(mod)
 }
 ```
 
@@ -142,7 +210,7 @@ for(i in 1:length(parametros)){
 
 
 
- ### Independente do dia
+### Independente do dia
  
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
 for(i in 1:length(parametros)){
@@ -166,11 +234,13 @@ for(i in 1:length(parametros)){
 classes<-c("medio", "grande")
 for(i in 1:2){
   dados  |>
-    filter(linhagem == "Dekalb", class_peso == classes[i]) |>
+    filter(linhagem == "Dekalb", 
+           class_peso == classes[i],
+           dia <= 30) |>
     drop_na() |> 
     select(resistencia_kgf:espessura_mm)  |>
     cor(use = "p")  |>
-    corrplot::corrplot()
+    corrplot::corrplot.mixed(lower.col = "black")
 }
 ```
 
@@ -203,7 +273,7 @@ for(i in 1:2){
     drop_na() |> 
     select(resistencia_kgf:espessura_mm)  |>
     cor(use = "p")  |>
-    corrplot::corrplot()
+    corrplot:::corrplot.mixed(lower.col = "black")
 }
 ```
 
@@ -271,4 +341,50 @@ for(i in 1:length(parametros)){
            fac.names = c("Dia", "Linhagem","Fosforo"))
 }
 ```
+
+## Análise de correlação desconsiderando o efeito dos tratamentos
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+names(dados)
+parametros
+dados_rs <- dados
+for(i in 6:12){
+  lin<-dados$linhagem
+  pd <- dados$nivel_de_fosforo_disp
+  dia <- forcats::as_factor(dados$dia)
+  trat <- paste0(lin,"_",pd)
+  trat <- forcats::as_factor(trat)
+  y <- dados[i] |>  pull()
+  sum(is.na(y))
+  
+  mod <- aov(y~trat*dia)
+  anova(mod)
+  rs <- rstudent(mod)
+  yp <- predict(mod)
+  dados_rs[,i] <- rs
+}
+
+dados_rs  |> 
+  select(resistencia_kgf:espessura_mm)  |>
+  cor(use = "p")  |>
+  corrplot::corrplot.mixed(lower.col = "black")
+
+```
+
+## Análise de correlação por tratamento
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados$Tratamento <- paste0(dados$linhagem,"_",
+                           dados$nivel_de_fosforo_disp)
+tratamentos = unique(dados$Tratamento)
+for(i in 1:length(tratamentos)){
+  print(tratamentos[i])
+  dados  |>
+    filter(Tratamento == tratamentos[i]) |>  
+    select(resistencia_kgf:espessura_mm)  |>
+    cor(use = "p")  |>
+    corrplot::corrplot.mixed(lower.col = "black")
+}
+```
+
 
