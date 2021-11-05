@@ -49,16 +49,21 @@ dplyr::glimpse(dados)
 dados <- dados |> 
   mutate(
     class_peso = case_when(
-      peso_g < 53 ~ "pequeno",
-      peso_g < 63 ~ "medio",
-      peso_g < 73 ~ "grande",
-      TRUE ~ "extra_grande"
-    )
+      peso_g < 50 ~ "pequeno",
+      peso_g < 55 ~ "medio",
+      peso_g < 60 ~ "grande",
+      peso_g < 65 ~ "extra_grande",
+      TRUE ~ "jumbo"
+    ),
+    freq_peso = frequencia_ressonante / peso_g
   )
+nd_filter <- c(0.105, 0.200, 0.391)
+dados <- dados |> 
+  filter(nivel_de_fosforo_disp %in% nd_filter)
 table(dados$class_peso)
 #> 
-#> extra_grande       grande        medio      pequeno 
-#>           29          673          698           15
+#> extra_grande       grande        jumbo        medio      pequeno 
+#>          268          143          265           23            1
 ```
 
 -   lidando com os valores perdidos de `resistencia_kgf`;
@@ -79,8 +84,8 @@ dados <-dados |>
     )
   )
 dplyr::glimpse(dados)
-#> Rows: 1,415
-#> Columns: 25
+#> Rows: 700
+#> Columns: 26
 #> $ data                  <dttm> 2021-05-14, 2021-05-14, 2021-05-14, 2021-05-14,~
 #> $ no_ovo_egg_tester     <dbl> 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, ~
 #> $ linhagem              <chr> "H&N", "H&N", "H&N", "H&N", "H&N", "H&N", "H&N",~
@@ -104,7 +109,8 @@ dplyr::glimpse(dados)
 #> $ indice_gema           <dbl> 0.380, 0.410, 0.400, 0.384, 0.406, 0.352, 0.433,~
 #> $ peso_casca            <dbl> 6.10, 5.99, 6.45, 5.49, 6.63, 6.77, 5.44, 6.59, ~
 #> $ percent_casca         <dbl> 0.09200603, 0.09315708, 0.09655689, 0.09000000, ~
-#> $ class_peso            <chr> "grande", "grande", "grande", "medio", "grande",~
+#> $ class_peso            <chr> "jumbo", "extra_grande", "jumbo", "extra_grande"~
+#> $ freq_peso             <dbl> 70.57315, 86.46967, 83.35329, 83.39344, 89.29395~
 #> $ dia                   <dbl> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ~
 ```
 
@@ -119,6 +125,7 @@ dados <- dados |>
          class_peso,
          resistencia_kgf,
          frequencia_ressonante,
+         freq_peso,
          shape_index,
          peso_g,
          altura_de_albumen,
@@ -213,8 +220,8 @@ for(i in 1:length(parametros)){
     ggplot(aes(x=dia, y=re, color=linhagem)) +
     geom_point() +
     geom_smooth(method = "lm")+
-    labs(x="Dias",y=parametros[i]) #+
-    # facet_wrap(~class_peso)
+    labs(x="Dias",y=parametros[i]) +
+    facet_wrap(~linhagem)
   print(plot)
 
   # tab <- da |>
@@ -227,7 +234,7 @@ for(i in 1:length(parametros)){
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-7.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-7.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-8-8.png)<!-- -->
 
 ## Estatística descritiva do banco de dados
 
@@ -240,12 +247,12 @@ skim(dados)
 |                                                  |       |
 |:-------------------------------------------------|:------|
 | Name                                             | dados |
-| Number of rows                                   | 1415  |
-| Number of columns                                | 12    |
+| Number of rows                                   | 700   |
+| Number of columns                                | 13    |
 | \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_   |       |
 | Column type frequency:                           |       |
 | character                                        | 2     |
-| numeric                                          | 10    |
+| numeric                                          | 11    |
 | \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ |       |
 | Group variables                                  | None  |
 
@@ -256,22 +263,23 @@ Data summary
 | skim\_variable | n\_missing | complete\_rate | min | max | empty | n\_unique | whitespace |
 |:---------------|-----------:|---------------:|----:|----:|------:|----------:|-----------:|
 | linhagem       |          0 |              1 |   3 |   6 |     0 |         2 |          0 |
-| class\_peso    |          0 |              1 |   5 |  12 |     0 |         4 |          0 |
+| class\_peso    |          0 |              1 |   5 |  12 |     0 |         5 |          0 |
 
 **Variable type: numeric**
 
 | skim\_variable           | n\_missing | complete\_rate |    mean |     sd |      p0 |     p25 |     p50 |     p75 |    p100 | hist  |
 |:-------------------------|-----------:|---------------:|--------:|-------:|--------:|--------:|--------:|--------:|--------:|:------|
-| dia                      |          0 |              1 |   30.17 |  20.95 |    1.00 |   15.00 |   30.00 |   45.00 |   60.00 | ▇▇▇▇▇ |
-| repeticao                |          0 |              1 |    8.43 |   4.56 |    1.00 |    4.00 |    8.00 |   12.00 |   16.00 | ▇▆▆▆▆ |
-| nivel\_de\_fosforo\_disp |          0 |              1 |    0.34 |   0.14 |    0.10 |    0.20 |    0.44 |    0.45 |    0.47 | ▃▂▁▂▇ |
-| resistencia\_kgf         |          0 |              1 |    3.63 |   0.85 |    0.89 |    3.08 |    3.67 |    4.20 |    6.64 | ▁▅▇▃▁ |
-| frequencia\_ressonante   |          0 |              1 | 5374.87 | 661.59 | 2529.00 | 4962.50 | 5252.00 | 5574.50 | 8764.00 | ▁▅▇▁▁ |
-| shape\_index             |          0 |              1 |   75.07 |   3.01 |   63.26 |   73.12 |   74.91 |   76.93 |   94.01 | ▁▇▆▁▁ |
-| peso\_g                  |          0 |              1 |   63.01 |   4.83 |   48.10 |   59.40 |   62.90 |   66.30 |   83.00 | ▁▇▇▂▁ |
-| altura\_de\_albumen      |          0 |              1 |    6.63 |   1.27 |    3.10 |    5.80 |    6.50 |    7.30 |   16.40 | ▂▇▁▁▁ |
-| uh                       |          0 |              1 |   79.45 |   8.66 |   39.70 |   74.30 |   80.00 |   84.80 |  120.60 | ▁▂▇▂▁ |
-| espessura\_mm            |          0 |              1 |    0.36 |   0.03 |    0.25 |    0.35 |    0.36 |    0.38 |    0.46 | ▁▂▇▃▁ |
+| dia                      |          0 |              1 |   30.16 |  20.95 |    1.00 |   15.00 |   30.00 |   45.00 |   60.00 | ▇▇▇▇▇ |
+| repeticao                |          0 |              1 |    8.38 |   4.51 |    1.00 |    4.00 |    8.00 |   12.00 |   16.00 | ▇▆▆▆▆ |
+| nivel\_de\_fosforo\_disp |          0 |              1 |    0.23 |   0.12 |    0.10 |    0.10 |    0.20 |    0.39 |    0.39 | ▇▇▁▁▇ |
+| resistencia\_kgf         |          0 |              1 |    3.58 |   0.86 |    0.89 |    2.99 |    3.62 |    4.17 |    6.23 | ▁▅▇▅▁ |
+| frequencia\_ressonante   |          0 |              1 | 5397.22 | 654.34 | 4055.00 | 4965.00 | 5303.00 | 5585.25 | 8764.00 | ▃▇▁▁▁ |
+| freq\_peso               |          0 |              1 |   85.62 |  13.41 |   66.08 |   77.64 |   82.95 |   90.03 |  167.60 | ▇▅▁▁▁ |
+| shape\_index             |          0 |              1 |   74.92 |   3.01 |   63.26 |   73.02 |   74.76 |   76.76 |   94.01 | ▁▇▆▁▁ |
+| peso\_g                  |          0 |              1 |   63.48 |   4.79 |   49.60 |   60.20 |   63.60 |   66.80 |   78.50 | ▁▅▇▃▁ |
+| altura\_de\_albumen      |          0 |              1 |    6.57 |   1.26 |    3.10 |    5.80 |    6.50 |    7.10 |   14.00 | ▁▇▂▁▁ |
+| uh                       |          0 |              1 |   78.92 |   8.72 |   39.70 |   73.90 |   79.55 |   84.32 |  112.30 | ▁▁▇▃▁ |
+| espessura\_mm            |          0 |              1 |    0.36 |   0.03 |    0.26 |    0.35 |    0.36 |    0.38 |    0.44 | ▁▂▇▇▁ |
 
 ## Gráfico de linhas
 
@@ -293,7 +301,7 @@ for(i in 1:length(parametros)){
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-7.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-7.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-10-8.png)<!-- -->
 
 ### Independente do dia
 
@@ -314,13 +322,13 @@ for(i in 1:length(parametros)){
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-7.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-4.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-5.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-6.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-7.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-11-8.png)<!-- -->
 
 ## Matriz de correlação para linhagem **DEKALB**
 
 ``` r
-classes<-c("medio", "grande")
-for(i in 1:2){
+classes<-c("grande", "extra_grande", "jumbo")
+for(i in 1:length(classes)){
   dados  |>
     filter(linhagem == "Dekalb", 
            class_peso == classes[i],
@@ -332,34 +340,12 @@ for(i in 1:2){
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->
-
-### Classe peso do ovo = **MEDIO**
-
-``` r
-dados |>
-  filter(linhagem == "Dekalb", class_peso =="medio") |>
-  select(resistencia_kgf:espessura_mm) |>
-  ggpairs()
-```
-
-![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
-
-### Classe peso do ovo = **GRANDE**
-
-``` r
-dados |>
-  filter(linhagem == "Dekalb", class_peso =="grande") |>
-  select(resistencia_kgf:espessura_mm) |>
-  ggpairs()
-```
-
-![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-12-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-12-3.png)<!-- -->
 
 ## Matriz de correlação para linhagem **H&N**
 
 ``` r
-for(i in 1:2){
+for(i in 1:length(classes)){
   dados  |>
     filter(linhagem == "H&N", class_peso == classes[i]) |>
     drop_na() |> 
@@ -369,29 +355,7 @@ for(i in 1:2){
 }
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
-
-### Classe peso do ovo = **MEDIO**
-
-``` r
-dados |>
-  filter(linhagem == "H&N", class_peso =="medio") |>
-  select(resistencia_kgf:espessura_mm) |>
-  ggpairs()
-```
-
-![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
-
-### Classe peso do ovo = **GRANDE**
-
-``` r
-dados |>
-  filter(linhagem == "H&N", class_peso =="grande") |>
-  select(resistencia_kgf:espessura_mm) |>
-  ggpairs()
-```
-
-![](README_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->
 
 ## Análise de variância
 
@@ -426,41 +390,152 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL     SQ      QM     Fc   Pr>Fc
-#> Linhagem          1 0.2437 0.24371 3.3887 0.06922
-#> Fosforo           5 0.3078 0.06157 0.8561 0.51425
-#> Linhagem*Fosforo  5 0.7758 0.15516 2.1575 0.06661
-#> Residuo          83 5.9694 0.07192               
-#> Total            94 7.2968                       
+#>                  GL     SQ       QM     Fc   Pr>Fc
+#> Linhagem          1 0.0352 0.035184 0.5180 0.47578
+#> Fosforo           2 0.0921 0.046050 0.6780 0.51324
+#> Linhagem*Fosforo  2 0.5751 0.287537 4.2333 0.02131
+#> Residuo          41 2.7848 0.067922               
+#> Total            46 3.4872                        
 #> ------------------------------------------------------------------------
-#> CV = 7.38 %
+#> CV = 7.27 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.927956 
+#> valor-p:  0.9996103 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
-#> Interacao nao significativa: analisando os efeitos simples
-#> ------------------------------------------------------------------------
-#> Linhagem
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 3.682743
-#> 2      H 3.581438
-#> ------------------------------------------------------------------------
-#> Fosforo
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> 
+#> 
+#> Interacao significativa: desdobrando a interacao
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1  0.105 3.526601
-#> 2    0.2 3.598164
-#> 3  0.391 3.631280
-#> 4  0.438 3.698375
-#> 5  0.454 3.661955
-#> 6  0.466 3.672952
+#> 
+#> Desdobrando  Linhagem  dentro de cada nivel de  Fosforo 
+#> ------------------------------------------------------------------------
+#> ------------------------------------------------------------------------
+#> Quadro da analise de variancia
+#> ------------------------------------------------------------------------
+#>                        GL      SQ      QM     Fc  Pr.Fc
+#> Fosforo                 2 0.09210 0.04605 0.6780 0.5132
+#> Linhagem:Fosforo 0.105  1 0.44003 0.44003 6.4784 0.0148
+#> Linhagem:Fosforo 0.2    1 0.00440 0.00440 0.0648 0.8003
+#> Linhagem:Fosforo 0.391  1 0.16848 0.16848 2.4805 0.1230
+#> Residuo                41 2.78480 0.06792     NA     NA
+#> Total                  46 3.48715 0.07581     NA     NA
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#> 
+#>  Linhagem  dentro do nivel  0.105  de  Fosforo 
+#> ------------------------------------------------------------------------
+#> Teste de Tukey
+#> ------------------------------------------------------------------------
+#> Grupos Tratamentos Medias
+#> a     Dekalb      3.692437 
+#>  b    H   3.360764 
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Linhagem  dentro do nivel  0.2  de  Fosforo 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1   Dekalb   3.614750
+#> 2        H   3.581579
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Linhagem  dentro do nivel  0.391  de  Fosforo 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1   Dekalb   3.517981
+#> 2        H   3.730417
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#> 
+#> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
+#> ------------------------------------------------------------------------
+#> ------------------------------------------------------------------------
+#> Quadro da analise de variancia
+#> ------------------------------------------------------------------------
+#>                         GL      SQ      QM     Fc  Pr.Fc
+#> Linhagem                 1 0.03518 0.03518 0.5180 0.4758
+#> Fosforo:Linhagem Dekalb  2 0.11370 0.05685 0.8370 0.4403
+#> Fosforo:Linhagem H&N     2 0.55348 0.27674 4.0744 0.0243
+#> Residuo                 41 2.78480 0.06792     NA     NA
+#> Total                   46 3.48715 0.07581     NA     NA
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#> 
+#>  Fosforo  dentro do nivel  Dekalb  de  Linhagem 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1    0.105   3.692437
+#> 2      0.2   3.614750
+#> 3    0.391   3.517981
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Fosforo  dentro do nivel  H&N  de  Linhagem 
+#> ------------------------------------------------------------------------
+#> Ajuste de modelos polinomiais de regressao
+#> ------------------------------------------------------------------------
+#> 
+#> Modelo Linear
+#> =========================================
+#>    Estimativa Erro.padrao   tc    valor.p
+#> -----------------------------------------
+#> b0   3.2749     0.1166    28.0827    0   
+#> b1   1.2186     0.4473    2.7242  0.0094 
+#> -----------------------------------------
+#> 
+#> R2 do modelo linear
+#> --------
+#>   H&N   
+#> --------
+#> 0.910755
+#> --------
+#> 
+#> Analise de variancia do modelo linear
+#> ==================================================
+#>                      GL   SQ     QM    Fc  valor.p
+#> --------------------------------------------------
+#> Efeito linear        1  0.5041 0.5041 7.42 0.00943
+#> Desvios de Regressao 1  0.0494 0.0494 0.73 0.39874
+#> Residuos             41 2.7848 0.0679             
+#> --------------------------------------------------
+#> ------------------------------------------------------------------------
+#> 
+#> Modelo quadratico
+#> =========================================
+#>    Estimativa Erro.padrao   tc    valor.p
+#> -----------------------------------------
+#> b0   3.0033     0.3392    8.8541     0   
+#> b1   3.9721     3.2597    1.2185  0.2300 
+#> b2  -5.4025     6.3351    -0.8528 0.3987 
+#> -----------------------------------------
+#> 
+#> R2 do modelo quadratico
+#> -
+#> 1
+#> -
+#> 
+#> Analise de variancia do modelo quadratico
+#> ==================================================
+#>                      GL   SQ     QM    Fc  valor.p
+#> --------------------------------------------------
+#> Efeito linear        1  0.5041 0.5041 7.42 0.00943
+#> Efeito quadratico    1  0.0494 0.0494 0.73 0.39874
+#> Desvios de Regressao 0    0      0     0      1   
+#> Residuos             41 2.7848 0.0679             
+#> --------------------------------------------------
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -476,17 +551,17 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                  GL      SQ    QM      Fc   Pr>Fc
-#> Linhagem          1   10493 10493 0.27737 0.59984
-#> Fosforo           5  409289 81858 2.16387 0.06589
-#> Linhagem*Fosforo  5   66699 13340 0.35263 0.87920
-#> Residuo          83 3139831 37829                
-#> Total            94 3626311                      
+#> Linhagem          1     452   452 0.01349 0.90810
+#> Fosforo           2  137640 68820 2.05583 0.14098
+#> Linhagem*Fosforo  2   24405 12202 0.36452 0.69676
+#> Residuo          41 1372497 33476                
+#> Total            46 1534994                      
 #> ------------------------------------------------------------------------
-#> CV = 3.62 %
+#> CV = 3.39 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.000147489 
+#> valor-p:  0.003237047 
 #> ATENCAO: a 5% de significancia, os residuos nao podem ser considerados normais!
 #> ------------------------------------------------------------------------
 #> 
@@ -496,8 +571,8 @@ for(i in 1:length(parametros)){
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
 #>   Niveis   Medias
-#> 1 Dekalb 5364.616
-#> 2      H 5385.637
+#> 1 Dekalb 5401.320
+#> 2      H 5395.119
 #> ------------------------------------------------------------------------
 #> Fosforo
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
@@ -507,9 +582,53 @@ for(i in 1:length(parametros)){
 #> 1  0.105 5473.535
 #> 2    0.2 5359.770
 #> 3  0.391 5358.689
-#> 4  0.438 5285.500
-#> 5  0.454 5446.012
-#> 6  0.466 5326.883
+#> ------------------------------------------------------------------------
+#> `summarise()` has grouped output by 'repeticao', 'linhagem'. You can override using the `.groups` argument.
+#> [1] "-------------------------------------------------"
+#> [1] "Variável: freq_peso"
+#> [1] "-------------------------------------------------"
+#> ------------------------------------------------------------------------
+#> Legenda:
+#> FATOR 1:  Linhagem 
+#> FATOR 2:  Fosforo 
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#> Quadro da analise de variancia
+#> ------------------------------------------------------------------------
+#>                  GL     SQ      QM     Fc   Pr>Fc
+#> Linhagem          1 125.68 125.683 6.9883 0.01157
+#> Fosforo           2 106.52  53.261 2.9615 0.06290
+#> Linhagem*Fosforo  2  17.68   8.840 0.4915 0.61524
+#> Residuo          41 737.37  17.985               
+#> Total            46 987.25                       
+#> ------------------------------------------------------------------------
+#> CV = 4.95 %
+#> 
+#> ------------------------------------------------------------------------
+#> Teste de normalidade dos residuos (Shapiro-Wilk)
+#> valor-p:  0.002137696 
+#> ATENCAO: a 5% de significancia, os residuos nao podem ser considerados normais!
+#> ------------------------------------------------------------------------
+#> 
+#> Interacao nao significativa: analisando os efeitos simples
+#> ------------------------------------------------------------------------
+#> Linhagem
+#> Teste de Tukey
+#> ------------------------------------------------------------------------
+#> Grupos Tratamentos Medias
+#> a     Dekalb      87.31607 
+#>  b    H   84.0448 
+#> ------------------------------------------------------------------------
+#> 
+#> Fosforo
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> 
+#> ------------------------------------------------------------------------
+#>   Niveis   Medias
+#> 1  0.105 87.52659
+#> 2    0.2 85.57542
+#> 3  0.391 83.71417
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -524,219 +643,39 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL      SQ     QM     Fc   Pr>Fc
-#> Linhagem          1  35.549 35.549 32.869 0.00000
-#> Fosforo           5   6.002  1.200  1.110 0.36149
-#> Linhagem*Fosforo  5  15.383  3.077  2.845 0.02023
-#> Residuo          83  89.768  1.082               
-#> Total            94 146.703                      
+#>                  GL     SQ     QM     Fc   Pr>Fc
+#> Linhagem          1 45.795 45.795 42.781 0.00000
+#> Fosforo           2  1.968  0.984  0.919 0.40692
+#> Linhagem*Fosforo  2  0.082  0.041  0.038 0.96237
+#> Residuo          41 43.888  1.070               
+#> Total            46 91.733                      
 #> ------------------------------------------------------------------------
-#> CV = 1.39 %
+#> CV = 1.38 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.3233734 
+#> valor-p:  0.06397591 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
-#> 
-#> 
-#> Interacao significativa: desdobrando a interacao
+#> Interacao nao significativa: analisando os efeitos simples
 #> ------------------------------------------------------------------------
-#> 
-#> Desdobrando  Linhagem  dentro de cada nivel de  Fosforo 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                        GL        SQ       QM      Fc  Pr.Fc
-#> Fosforo                 5   6.00214  1.20043  1.1099 0.3615
-#> Linhagem:Fosforo 0.105  1  15.74516 15.74516 14.5580 0.0003
-#> Linhagem:Fosforo 0.2    1  14.17020 14.17020 13.1018 0.0005
-#> Linhagem:Fosforo 0.391  1  16.28336 16.28336 15.0556 0.0002
-#> Linhagem:Fosforo 0.438  1   3.02565  3.02565  2.7975 0.0982
-#> Linhagem:Fosforo 0.454  1   0.02176  0.02176  0.0201 0.8876
-#> Linhagem:Fosforo 0.466  1   1.69752  1.69752  1.5695 0.2138
-#> Residuo                83  89.76848  1.08155      NA     NA
-#> Total                  94 146.70305  1.56067      NA     NA
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.105  de  Fosforo 
-#> ------------------------------------------------------------------------
+#> Linhagem
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     Dekalb      76.0447 
-#>  b    H   74.06069 
+#> a     Dekalb      75.93215 
+#>  b    H   73.95752 
 #> ------------------------------------------------------------------------
 #> 
-#> 
-#>  Linhagem  dentro do nivel  0.2  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      75.60452 
-#>  b    H   73.72235 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      76.17795 
-#>  b    H   74.0895 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.438  de  Fosforo 
-#> 
+#> Fosforo
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> 
 #> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   75.80501
-#> 2        H   74.93529
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   75.33716
-#> 2        H   75.41091
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   75.23353
-#> 2        H   74.58208
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                         GL        SQ       QM      Fc  Pr.Fc
-#> Linhagem                 1  35.54946 35.54946 32.8691 0.0000
-#> Fosforo:Linhagem Dekalb  5   5.50040  1.10008  1.0171 0.4129
-#> Fosforo:Linhagem H&N     5  15.88471  3.17694  2.9374 0.0172
-#> Residuo                 83  89.76848  1.08155      NA     NA
-#> Total                   94 146.70305  1.56067      NA     NA
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Fosforo  dentro do nivel  Dekalb  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   76.04470
-#> 2      0.2   75.60452
-#> 3    0.391   76.17795
-#> 4    0.438   75.80501
-#> 5    0.454   75.33716
-#> 6    0.466   75.23353
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro do nivel  H&N  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> ==========================================
-#>    Estimativa Erro.padrao    tc    valor.p
-#> ------------------------------------------
-#> b0  73.4372     0.3991    184.0138    0   
-#> b1   3.0075     1.0802     2.7843  0.0066 
-#> ------------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#>   H&N   
-#> --------
-#> 0.527838
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> ===================================================
-#>                      GL   SQ      QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear        1  8.3846  8.3846 7.75 0.00664
-#> Desvios de Regressao 4  7.5001  1.8750 1.73 0.15032
-#> Residuos             83 89.7685 1.0816             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  75.0358     1.0295    72.8826    0   
-#> b1  -11.8614    8.8936    -1.3337 0.1860 
-#> b2  25.5789     15.1862   1.6844  0.0959 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#>   H&N   
-#> --------
-#> 0.721005
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> ===================================================
-#>                      GL   SQ      QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear        1  8.3846  8.3846 7.75 0.00664
-#> Efeito quadratico    1  3.0684  3.0684 2.84 0.09587
-#> Desvios de Regressao 3  4.4318  1.4772 1.37 0.25893
-#> Residuos             83 89.7685 1.0816             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  75.1076     2.1916    34.2700    0   
-#> b1  -12.8856    28.9727   -0.4448 0.6577 
-#> b2  29.6747    111.3088   0.2666  0.7904 
-#> b3  -4.8371    130.2253   -0.0371 0.9705 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>   H&N   
-#> --------
-#> 0.721098
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ===================================================
-#>                      GL   SQ      QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear        1  8.3846  8.3846 7.75 0.00664
-#> Efeito quadratico    1  3.0684  3.0684 2.84 0.09587
-#> Efeito cubico        1  0.0015  0.0015  0   0.97046
-#> Desvios de Regressao 2  4.4303  2.2151 2.05 0.13545
-#> Residuos             83 89.7685 1.0816             
-#> ---------------------------------------------------
+#>   Niveis   Medias
+#> 1  0.105 75.05270
+#> 2    0.2 74.66344
+#> 3  0.391 75.06411
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -751,219 +690,39 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL     SQ      QM     Fc    Pr>Fc
-#> Linhagem          1 150.71 150.706 60.085 0.000000
-#> Fosforo           5  45.39   9.078  3.619 0.005193
-#> Linhagem*Fosforo  5  29.81   5.962  2.377 0.045678
-#> Residuo          83 208.18   2.508                
-#> Total            94 434.08                        
+#>                  GL      SQ     QM      Fc   Pr>Fc
+#> Linhagem          1  62.774 62.774 20.7329 0.00005
+#> Fosforo           2  13.194  6.597  2.1788 0.12610
+#> Linhagem*Fosforo  2   3.936  1.968  0.6500 0.52735
+#> Residuo          41 124.138  3.028                
+#> Total            46 204.042                       
 #> ------------------------------------------------------------------------
-#> CV = 2.51 %
+#> CV = 2.74 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.8062633 
+#> valor-p:  0.4911715 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
-#> 
-#> 
-#> Interacao significativa: desdobrando a interacao
+#> Interacao nao significativa: analisando os efeitos simples
 #> ------------------------------------------------------------------------
-#> 
-#> Desdobrando  Linhagem  dentro de cada nivel de  Fosforo 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                        GL        SQ       QM      Fc  Pr.Fc
-#> Fosforo                 5  45.38908  9.07782  3.6193 0.0052
-#> Linhagem:Fosforo 0.105  1  17.17819 17.17819  6.8488 0.0105
-#> Linhagem:Fosforo 0.2    1  37.26018 37.26018 14.8553 0.0002
-#> Linhagem:Fosforo 0.391  1  10.43937 10.43937  4.1621 0.0445
-#> Linhagem:Fosforo 0.438  1  82.11380 82.11380 32.7381 0.0000
-#> Linhagem:Fosforo 0.454  1   4.14365  4.14365  1.6520 0.2023
-#> Linhagem:Fosforo 0.466  1  26.24123 26.24123 10.4622 0.0018
-#> Residuo                83 208.18062  2.50820      NA     NA
-#> Total                  94 434.08309  4.61791      NA     NA
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.105  de  Fosforo 
-#> ------------------------------------------------------------------------
+#> Linhagem
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     H   64.08167 
-#>  b    Dekalb      62.00934 
+#> a     H   64.60559 
+#>  b    Dekalb      62.29368 
 #> ------------------------------------------------------------------------
 #> 
-#> 
-#>  Linhagem  dentro do nivel  0.2  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   64.65622 
-#>  b    Dekalb      61.60417 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   65.07887 
-#>  b    Dekalb      63.40667 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   64.13667 
-#>  b    Dekalb      59.60583 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.454  de  Fosforo 
-#> 
+#> Fosforo
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> 
 #> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   62.12833
-#> 2        H   63.14613
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.466  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   64.44875 
-#>  b    Dekalb      61.88744 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                         GL        SQ        QM      Fc  Pr.Fc
-#> Linhagem                 1 150.70557 150.70557 60.0851 0.0000
-#> Fosforo:Linhagem Dekalb  5  57.99000  11.59800  4.6240 0.0009
-#> Fosforo:Linhagem H&N     5  17.20689   3.44138  1.3721 0.2432
-#> Residuo                 83 208.18062   2.50820      NA     NA
-#> Total                   94 434.08309   4.61791      NA     NA
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Fosforo  dentro do nivel  Dekalb  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> ==========================================
-#>    Estimativa Erro.padrao    tc    valor.p
-#> ------------------------------------------
-#> b0  62.0820     0.6078    102.1479    0   
-#> b1  -1.0054     1.6471    -0.6104  0.5432 
-#> ------------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.016117
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> =====================================================
-#>                      GL    SQ      QM     Fc  valor.p
-#> -----------------------------------------------------
-#> Efeito linear        1   0.9346  0.9346  0.37 0.54325
-#> Desvios de Regressao 4  57.0554  14.2638 5.69 0.00043
-#> Residuos             83 208.1806 2.5082              
-#> -----------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  61.1618     1.5882    38.5090    0   
-#> b1   7.5685     13.7704   0.5496  0.5841 
-#> b2  -14.7334    23.4932   -0.6271 0.5323 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.033128
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> =====================================================
-#>                      GL    SQ      QM     Fc  valor.p
-#> -----------------------------------------------------
-#> Efeito linear        1   0.9346  0.9346  0.37 0.54325
-#> Efeito quadratico    1   0.9865  0.9865  0.39 0.53229
-#> Desvios de Regressao 3  56.0689  18.6896 7.45 0.00018
-#> Residuos             83 208.1806 2.5082              
-#> -----------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  64.2026     3.3636    19.0877    0   
-#> b1  -36.0346    44.6898   -0.8063 0.4224 
-#> b2  161.0083   172.9604   0.9309  0.3546 
-#> b3 -208.7013   203.4948   -1.0256 0.3081 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.078622
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ======================================================
-#>                      GL    SQ      QM     Fc   valor.p
-#> ------------------------------------------------------
-#> Efeito linear        1   0.9346  0.9346  0.37  0.54325
-#> Efeito quadratico    1   0.9865  0.9865  0.39  0.53229
-#> Efeito cubico        1   2.6382  2.6382  1.05  0.30807
-#> Desvios de Regressao 2  53.4307  26.7154 10.65  8e-05 
-#> Residuos             83 208.1806 2.5082               
-#> ------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro do nivel  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   64.08167
-#> 2      0.2   64.65622
-#> 3    0.391   65.07887
-#> 4    0.438   64.13667
-#> 5    0.454   63.14613
-#> 6    0.466   64.44875
+#>   Niveis   Medias
+#> 1  0.105 63.04550
+#> 2    0.2 63.13019
+#> 3  0.391 64.29851
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -978,18 +737,18 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL      SQ      QM     Fc    Pr>Fc
-#> Linhagem          1  0.8267 0.82670 5.8913 0.017379
-#> Fosforo           5  1.6879 0.33757 2.4057 0.043456
-#> Linhagem*Fosforo  5  1.8967 0.37935 2.7034 0.025892
-#> Residuo          83 11.6469 0.14032                
-#> Total            94 16.0582                        
+#>                  GL     SQ      QM     Fc    Pr>Fc
+#> Linhagem          1 0.3640 0.36396 2.3253 0.134960
+#> Fosforo           2 0.4437 0.22187 1.4175 0.253939
+#> Linhagem*Fosforo  2 1.3256 0.66280 4.2346 0.021291
+#> Residuo          41 6.4173 0.15652                
+#> Total            46 8.5506                        
 #> ------------------------------------------------------------------------
-#> CV = 5.65 %
+#> CV = 6.02 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.2450373 
+#> valor-p:  0.157455 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
@@ -1003,16 +762,13 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                        GL       SQ      QM     Fc  Pr.Fc
-#> Fosforo                 5  1.68786 0.33757 2.4057 0.0435
-#> Linhagem:Fosforo 0.105  1  1.34684 1.34684 9.5981 0.0027
-#> Linhagem:Fosforo 0.2    1  0.10220 0.10220 0.7283 0.3959
-#> Linhagem:Fosforo 0.391  1  0.22946 0.22946 1.6352 0.2045
-#> Linhagem:Fosforo 0.438  1  0.98340 0.98340 7.0081 0.0097
-#> Linhagem:Fosforo 0.454  1  0.05904 0.05904 0.4207 0.5184
-#> Linhagem:Fosforo 0.466  1  0.00150 0.00150 0.0107 0.9180
-#> Residuo                83 11.64692 0.14032     NA     NA
-#> Total                  94 16.05822 0.17083     NA     NA
+#>                        GL      SQ      QM     Fc  Pr.Fc
+#> Fosforo                 2 0.44374 0.22187 1.4175 0.2539
+#> Linhagem:Fosforo 0.105  1 1.34684 1.34684 8.6050 0.0055
+#> Linhagem:Fosforo 0.2    1 0.10220 0.10220 0.6530 0.4237
+#> Linhagem:Fosforo 0.391  1 0.22946 0.22946 1.4660 0.2329
+#> Residuo                41 6.41727 0.15652     NA     NA
+#> Total                  46 8.55057 0.18588     NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1047,223 +803,41 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Linhagem  dentro do nivel  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   6.988333 
-#>  b    Dekalb      6.4925 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.430000
-#> 2        H   6.551488
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.826131
-#> 2        H   6.806786
-#> ------------------------------------------------------------------------
-#> 
-#> 
 #> 
 #> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
 #> ------------------------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                         GL       SQ      QM     Fc  Pr.Fc
-#> Linhagem                 1  0.82670 0.82670 5.8913 0.0174
-#> Fosforo:Linhagem Dekalb  5  1.68245 0.33649 2.3979 0.0440
-#> Fosforo:Linhagem H&N     5  1.90215 0.38043 2.7111 0.0255
-#> Residuo                 83 11.64692 0.14032     NA     NA
-#> Total                   94 16.05822 0.17083     NA     NA
+#>                         GL      SQ      QM     Fc  Pr.Fc
+#> Linhagem                 1 0.36396 0.36396 2.3253 0.1350
+#> Fosforo:Linhagem Dekalb  2 0.83082 0.41541 2.6541 0.0824
+#> Fosforo:Linhagem H&N     2 0.93851 0.46926 2.9981 0.0609
+#> Residuo                 41 6.41727 0.15652     NA     NA
+#> Total                   46 8.55057 0.18588     NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
 #> 
 #>  Fosforo  dentro do nivel  Dekalb  de  Linhagem 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   6.2404     0.1437    43.4098    0   
-#> b1   0.8551     0.3896    2.1949  0.0310 
-#> -----------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.401794
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> ===================================================
-#>                      GL   SQ      QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear        1  0.6760  0.6760 4.82 0.03097
-#> Desvios de Regressao 4  1.0065  0.2516 1.79 0.13796
-#> Residuos             83 11.6469 0.1403             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   6.2247     0.3757    16.5698    0   
-#> b1   1.0007     3.2571    0.3072  0.7594 
-#> b2  -0.2503     5.5568    -0.0450 0.9642 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.401963
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> ===================================================
-#>                      GL   SQ      QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear        1  0.6760  0.6760 4.82 0.03097
-#> Efeito quadratico    1  0.0003  0.0003  0   0.96419
-#> Desvios de Regressao 3  1.0062  0.3354 2.39 0.07455
-#> Residuos             83 11.6469 0.1403             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   6.6004     0.7956    8.2964     0   
-#> b1  -4.3862     10.5705   -0.4150 0.6792 
-#> b2  21.4618     40.9102   0.5246  0.6012 
-#> b3  -25.7841    48.1325   -0.5357 0.5936 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.425897
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ===================================================
-#>                      GL   SQ      QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear        1  0.6760  0.6760 4.82 0.03097
-#> Efeito quadratico    1  0.0003  0.0003  0   0.96419
-#> Efeito cubico        1  0.0403  0.0403 0.29 0.59361
-#> Desvios de Regressao 2  0.9659  0.4830 3.44 0.03665
-#> Residuos             83 11.6469 0.1403             
-#> ---------------------------------------------------
+#>     Niveis     Medias
+#> 1    0.105   6.354732
+#> 2      0.2   6.352500
+#> 3    0.391   6.766667
 #> ------------------------------------------------------------------------
 #> 
 #> 
 #>  Fosforo  dentro do nivel  H&N  de  Linhagem 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   6.7592     0.1437    47.0203    0   
-#> b1  -0.1181     0.3891    -0.3034 0.7623 
-#> -----------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#>   H&N   
-#> --------
-#> 0.006791
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> ===================================================
-#>                      GL   SQ      QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear        1  0.0129  0.0129 0.09 0.76233
-#> Desvios de Regressao 4  1.8892  0.4723 3.37 0.01327
-#> Residuos             83 11.6469 0.1403             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   7.5945     0.3708    20.4792    0   
-#> b1  -7.8880     3.2035    -2.4623 0.0159 
-#> b2  13.3665     5.4701    2.4436  0.0167 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#>   H&N   
-#> --------
-#> 0.447283
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> ===================================================
-#>                      GL   SQ      QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear        1  0.0129  0.0129 0.09 0.76233
-#> Efeito quadratico    1  0.8379  0.8379 5.97 0.01666
-#> Desvios de Regressao 3  1.0514  0.3504 2.5  0.06533
-#> Residuos             83 11.6469 0.1403             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   8.0732     0.7894    10.2266    0   
-#> b1  -14.7096    10.4360   -1.4095 0.1624 
-#> b2  40.6461     40.0934   1.0138  0.3136 
-#> b3  -32.2169    46.9071   -0.6868 0.4941 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>   H&N   
-#> --------
-#> 0.482082
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ===================================================
-#>                      GL   SQ      QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear        1  0.0129  0.0129 0.09 0.76233
-#> Efeito quadratico    1  0.8379  0.8379 5.97 0.01666
-#> Efeito cubico        1  0.0662  0.0662 0.47 0.49411
-#> Desvios de Regressao 2  0.9852  0.4926 3.51 0.0344 
-#> Residuos             83 11.6469 0.1403             
-#> ---------------------------------------------------
+#>     Niveis     Medias
+#> 1    0.105   6.935000
+#> 2      0.2   6.512344
+#> 3    0.391   6.518750
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -1278,18 +852,18 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL     SQ      QM      Fc   Pr>Fc
-#> Linhagem          1   6.02  6.0234 0.83696 0.36292
-#> Fosforo           5  80.79 16.1589 2.24531 0.05730
-#> Linhagem*Fosforo  5  91.96 18.3916 2.55553 0.03350
-#> Residuo          83 597.33  7.1968                
-#> Total            94 776.11                        
+#>                  GL     SQ     QM     Fc   Pr>Fc
+#> Linhagem          1   1.66  1.664 0.2024 0.65513
+#> Fosforo           2  20.01 10.007 1.2174 0.30648
+#> Linhagem*Fosforo  2  70.02 35.011 4.2593 0.02086
+#> Residuo          41 337.01  8.220               
+#> Total            46 428.71                      
 #> ------------------------------------------------------------------------
-#> CV = 3.38 %
+#> CV = 3.63 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.2776907 
+#> valor-p:  0.5334621 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
@@ -1304,15 +878,12 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                        GL        SQ       QM     Fc  Pr.Fc
-#> Fosforo                 5  80.79464 16.15893 2.2453 0.0573
-#> Linhagem:Fosforo 0.105  1  51.62551 51.62551 7.1734 0.0089
-#> Linhagem:Fosforo 0.2    1   0.60499  0.60499 0.0841 0.7726
-#> Linhagem:Fosforo 0.391  1  19.37393 19.37393 2.6920 0.1046
-#> Linhagem:Fosforo 0.438  1  20.82401 20.82401 2.8935 0.0927
-#> Linhagem:Fosforo 0.454  1   1.77143  1.77143 0.2461 0.6211
-#> Linhagem:Fosforo 0.466  1   3.95063  3.95063 0.5489 0.4608
-#> Residuo                83 597.33124  7.19676     NA     NA
-#> Total                  94 776.10709  8.25646     NA     NA
+#> Fosforo                 2  20.01303 10.00652 1.2174 0.3065
+#> Linhagem:Fosforo 0.105  1  51.62551 51.62551 6.2807 0.0163
+#> Linhagem:Fosforo 0.2    1   0.60499  0.60499 0.0736 0.7875
+#> Linhagem:Fosforo 0.391  1  19.37393 19.37393 2.3570 0.1324
+#> Residuo                41 337.00986  8.21975     NA     NA
+#> Total                  46 428.70824  9.31974     NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1347,36 +918,6 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Linhagem  dentro do nivel  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   79.39000
-#> 2        H   81.67167
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   78.48833
-#> 2        H   79.15381
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   81.09976
-#> 2        H   80.10595
-#> ------------------------------------------------------------------------
-#> 
-#> 
 #> 
 #> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
 #> ------------------------------------------------------------------------
@@ -1384,11 +925,11 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                         GL        SQ       QM     Fc  Pr.Fc
-#> Linhagem                 1   6.02337  6.02337 0.8370 0.3629
-#> Fosforo:Linhagem Dekalb  5  66.30428 13.26086 1.8426 0.1134
-#> Fosforo:Linhagem H&N     5 106.44820 21.28964 2.9582 0.0166
-#> Residuo                 83 597.33124  7.19676     NA     NA
-#> Total                   94 776.10709  8.25646     NA     NA
+#> Linhagem                 1   1.66402  1.66402 0.2024 0.6551
+#> Fosforo:Linhagem Dekalb  2  27.50810 13.75405 1.6733 0.2002
+#> Fosforo:Linhagem H&N     2  62.52625 31.26313 3.8034 0.0305
+#> Residuo                 41 337.00986  8.21975     NA     NA
+#> Total                   46 428.70824  9.31974     NA     NA
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1401,9 +942,6 @@ for(i in 1:length(parametros)){
 #> 1    0.105   77.76996
 #> 2      0.2   78.21917
 #> 3    0.391   80.33619
-#> 4    0.438   79.39000
-#> 5    0.454   78.48833
-#> 6    0.466   81.09976
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1416,24 +954,24 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0  79.7872     1.0295    77.5036    0   
-#> b1  -0.2633     2.7864    -0.0945 0.9249 
+#> b0  81.3381     1.2829    63.4034    0   
+#> b1  -9.7177     4.9207    -1.9748 0.0550 
 #> -----------------------------------------
 #> 
 #> R2 do modelo linear
 #> --------
 #>   H&N   
 #> --------
-#> 0.000604
+#> 0.512702
 #> --------
 #> 
 #> Analise de variancia do modelo linear
 #> =====================================================
 #>                      GL    SQ      QM     Fc  valor.p
 #> -----------------------------------------------------
-#> Efeito linear        1   0.0643  0.0643  0.01 0.92494
-#> Desvios de Regressao 4  106.3839 26.5960 3.7  0.00809
-#> Residuos             83 597.3312 7.1968              
+#> Efeito linear        1  32.0573  32.0573 3.9  0.05505
+#> Desvios de Regressao 1  30.4689  30.4689 3.71 0.06115
+#> Residuos             41 337.0099 8.2198              
 #> -----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -1441,55 +979,24 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0  86.8772     2.6558    32.7126    0   
-#> b1  -66.2119    22.9414   -2.8861 0.0050 
-#> b2  113.4506    39.1737   2.8961  0.0048 
+#> b0  88.0843     3.7314    23.6063    0   
+#> b1  -78.1055    35.8598   -2.1781 0.0352 
+#> b2  134.1770    69.6914   1.9253  0.0612 
 #> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
-#> --------
-#>   H&N   
-#> --------
-#> 0.567655
-#> --------
+#> -
+#> 1
+#> -
 #> 
 #> Analise de variancia do modelo quadratico
 #> =====================================================
 #>                      GL    SQ      QM     Fc  valor.p
 #> -----------------------------------------------------
-#> Efeito linear        1   0.0643  0.0643  0.01 0.92494
-#> Efeito quadratico    1  60.3616  60.3616 8.39 0.00483
-#> Desvios de Regressao 3  46.0224  15.3408 2.13 0.1024 
-#> Residuos             83 597.3312 7.1968              
-#> -----------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  91.1019     5.6535    16.1144    0   
-#> b1 -126.4226    74.7369   -1.6916 0.0945 
-#> b2  354.2328   287.1279   1.2337  0.2208 
-#> b3 -284.3611   335.9240   -0.8465 0.3997 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>   H&N   
-#> --------
-#> 0.616101
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> =====================================================
-#>                      GL    SQ      QM     Fc  valor.p
-#> -----------------------------------------------------
-#> Efeito linear        1   0.0643  0.0643  0.01 0.92494
-#> Efeito quadratico    1  60.3616  60.3616 8.39 0.00483
-#> Efeito cubico        1   5.1570  5.1570  0.72 0.39971
-#> Desvios de Regressao 2  40.8654  20.4327 2.84 0.06417
-#> Residuos             83 597.3312 7.1968              
+#> Efeito linear        1  32.0573  32.0573 3.9  0.05505
+#> Efeito quadratico    1  30.4689  30.4689 3.71 0.06115
+#> Desvios de Regressao 0     0        0     0      1   
+#> Residuos             41 337.0099 8.2198              
 #> -----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'repeticao', 'linhagem'. You can override using the `.groups` argument.
@@ -1505,18 +1012,18 @@ for(i in 1:length(parametros)){
 #> 
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                  GL        SQ         QM     Fc    Pr>Fc
-#> Linhagem          1 0.0005000 0.00049996 4.5069 0.036737
-#> Fosforo           5 0.0009113 0.00018227 1.6431 0.157715
-#> Linhagem*Fosforo  5 0.0007345 0.00014690 1.3243 0.261911
-#> Residuo          83 0.0092072 0.00011093                
-#> Total            94 0.0113530                           
+#>                  GL        SQ         QM     Fc   Pr>Fc
+#> Linhagem          1 0.0008091 0.00080915 6.0771 0.01797
+#> Fosforo           2 0.0001936 0.00009680 0.7270 0.48947
+#> Linhagem*Fosforo  2 0.0002215 0.00011074 0.8317 0.44253
+#> Residuo          41 0.0054591 0.00013315               
+#> Total            46 0.0066833                          
 #> ------------------------------------------------------------------------
-#> CV = 2.92 %
+#> CV = 3.18 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.863119 
+#> valor-p:  0.9948873 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
@@ -1526,8 +1033,8 @@ for(i in 1:length(parametros)){
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     H   0.3632209 
-#>  b    Dekalb      0.3586326 
+#> a     H   0.3665926 
+#>  b    Dekalb      0.3582923 
 #> ------------------------------------------------------------------------
 #> 
 #> Fosforo
@@ -1538,9 +1045,6 @@ for(i in 1:length(parametros)){
 #> 1  0.105 0.3649587
 #> 2    0.2 0.3600437
 #> 3  0.391 0.3625939
-#> 4  0.438 0.3616105
-#> 5  0.454 0.3548720
-#> 6  0.466 0.3617292
 #> ------------------------------------------------------------------------
 ```
 
@@ -1579,22 +1083,22 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                       GL        SQ      QM     Fc  Pr>Fc
-#> Dia                    4   6.21371 1.55343  6.239  1e-04
-#> Linhagem               1   1.17746 1.17746  4.729 0.0302
-#> Fosforo                5   1.59885 0.31977 1.2843 0.2696
-#> Dia*Linhagem           4   0.34964 0.08741 0.3511 0.8433
-#> Dia*Fosforo           20   2.84790 0.14239 0.5719 0.9314
-#> Linhagem*Fosforo       5   3.79040 0.75808 3.0447 0.0103
-#> Dia*Linhagem*Fosforo  20   3.91535 0.19577 0.7863  0.731
-#> Residuo              415 103.32976 0.24899              
-#> Total                474 123.22306                      
+#>                       GL       SQ      QM     Fc  Pr>Fc
+#> Dia                    4  3.91808 0.97952  3.684 0.0064
+#> Linhagem               1  0.17742 0.17742 0.6673  0.415
+#> Fosforo                2  0.46768 0.23384 0.8795 0.4166
+#> Dia*Linhagem           4  0.27923 0.06981 0.2625 0.9017
+#> Dia*Fosforo            8  0.39391 0.04924 0.1852 0.9927
+#> Linhagem*Fosforo       2  2.83806 1.41903  5.337 0.0055
+#> Dia*Linhagem*Fosforo   8  2.16918 0.27115 1.0198 0.4222
+#> Residuo              205 54.50656 0.26589              
+#> Total                234 64.75011                      
 #> ------------------------------------------------------------------------
-#> CV = 13.74 %
+#> CV = 14.39 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.173182 
+#> valor-p:  0.6428463 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
@@ -1608,14 +1112,11 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                         GL        SQ      QM     Fc  Pr>Fc
-#> Linhagem:Fosforo 0.105   1   2.16523 2.16523 8.6961 0.0034
-#> Linhagem:Fosforo 0.2     1   0.02598 0.02598 0.1043 0.7468
-#> Linhagem:Fosforo 0.391   1   0.83779 0.83779 3.3648 0.0673
-#> Linhagem:Fosforo 0.438   1   0.00435 0.00435 0.0175 0.8949
-#> Linhagem:Fosforo 0.454   1   1.11904 1.11904 4.4944 0.0346
-#> Linhagem:Fosforo 0.466   1   0.81574 0.81574 3.2762  0.071
-#> Residuo                415 103.32976 0.24899              
+#>                         GL       SQ      QM     Fc  Pr>Fc
+#> Linhagem:Fosforo 0.105   1  2.16523 2.16523 8.1434 0.0048
+#> Linhagem:Fosforo 0.2     1  0.02598 0.02598 0.0977 0.7549
+#> Linhagem:Fosforo 0.391   1  0.83779 0.83779 3.1509 0.0774
+#> Residuo                205 54.50656 0.26589              
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1650,46 +1151,16 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Linhagem  dentro do nivel  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb    3.69100
-#> 2        H    3.70575
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.454  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      3.7815 
-#>  b    H   3.544958 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   3.777333
-#> 2        H   3.575375
-#> ------------------------------------------------------------------------
-#> 
-#> 
 #> 
 #> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
 #> ------------------------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                          GL        SQ      QM     Fc  Pr>Fc
-#> Fosforo:Linhagem Dekalb   5   1.88769 0.37754 1.5163 0.1835
-#> Fosforo:Linhagem H&N      5   3.50155 0.70031 2.8126 0.0164
-#> Residuo                 415 103.32976 0.24899              
+#>                          GL       SQ      QM     Fc  Pr>Fc
+#> Fosforo:Linhagem Dekalb   2  0.55173 0.27587 1.0375 0.3562
+#> Fosforo:Linhagem H&N      2  2.75400 1.37700 5.1789 0.0064
+#> Residuo                 205 54.50656 0.26589              
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1702,9 +1173,6 @@ for(i in 1:length(parametros)){
 #> 1    0.105   3.689795
 #> 2      0.2   3.614750
 #> 3    0.391   3.517981
-#> 4    0.438   3.691000
-#> 5    0.454   3.781500
-#> 6    0.466   3.777333
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1717,81 +1185,50 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   3.3845     0.0856    39.5223    0   
-#> b1   0.5787     0.2318    2.4967  0.0129 
+#> b0   3.2737     0.1032    31.7270    0   
+#> b1   1.2185     0.3958    3.0788  0.0024 
 #> -----------------------------------------
 #> 
 #> R2 do modelo linear
 #> --------
 #>   H&N   
 #> --------
-#> 0.443266
+#> 0.915152
 #> --------
 #> 
 #> Analise de variancia do modelo linear
-#> =====================================================
-#>                      GL     SQ      QM    Fc  valor.p
-#> -----------------------------------------------------
-#> Efeito linear         1   1.5521  1.5521 6.23 0.01292
-#> Desvios de Regressao  4   1.9494  0.4874 1.96 0.10017
-#> Residuos             415 103.3298 0.2490             
-#> -----------------------------------------------------
+#> ====================================================
+#>                      GL    SQ      QM    Fc  valor.p
+#> ----------------------------------------------------
+#> Efeito linear         1  2.5203  2.5203 9.48 0.00236
+#> Desvios de Regressao  1  0.2337  0.2337 0.88 0.34962
+#> Residuos             205 54.5066 0.2659             
+#> ----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
 #> Modelo quadratico
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   2.8788     0.2209    13.0314    0   
-#> b1   5.2819     1.9083    2.7678  0.0059 
-#> b2  -8.0909     3.2586    -2.4830 0.0134 
+#> b0   3.0095     0.3001    10.0275    0   
+#> b1   3.8969     2.8843    1.3511  0.1782 
+#> b2  -5.2549     5.6055    -0.9375 0.3496 
 #> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
-#> --------
-#>   H&N   
-#> --------
-#> 0.881650
-#> --------
+#> -
+#> 1
+#> -
 #> 
 #> Analise de variancia do modelo quadratico
-#> =====================================================
-#>                      GL     SQ      QM    Fc  valor.p
-#> -----------------------------------------------------
-#> Efeito linear         1   1.5521  1.5521 6.23 0.01292
-#> Efeito quadratico     1   1.5350  1.5350 6.17 0.01342
-#> Desvios de Regressao  3   0.4144  0.1381 0.55 0.64518
-#> Residuos             415 103.3298 0.2490             
-#> -----------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   3.1965     0.4703    6.7971     0   
-#> b1   0.7545     6.2168    0.1214  0.9035 
-#> b2  10.0142     23.8842   0.4193  0.6752 
-#> b3  -21.3819    27.9432   -0.7652 0.4446 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>   H&N   
-#> --------
-#> 0.923285
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> =====================================================
-#>                      GL     SQ      QM    Fc  valor.p
-#> -----------------------------------------------------
-#> Efeito linear         1   1.5521  1.5521 6.23 0.01292
-#> Efeito quadratico     1   1.5350  1.5350 6.17 0.01342
-#> Efeito cubico         1   0.1458  0.1458 0.59 0.44459
-#> Desvios de Regressao  2   0.2686  0.1343 0.54 0.58349
-#> Residuos             415 103.3298 0.2490             
-#> -----------------------------------------------------
+#> ====================================================
+#>                      GL    SQ      QM    Fc  valor.p
+#> ----------------------------------------------------
+#> Efeito linear         1  2.5203  2.5203 9.48 0.00236
+#> Efeito quadratico     1  0.2337  0.2337 0.88 0.34962
+#> Desvios de Regressao  0     0      0     0      1   
+#> Residuos             205 54.5066 0.2659             
+#> ----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
 #> Analisando os efeitos simples do fator  Dia 
@@ -1800,11 +1237,11 @@ for(i in 1:length(parametros)){
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     1   3.808211 
-#> ab    15      3.658649 
-#> abc   30      3.640789 
-#>  bc   45      3.599895 
-#>   c   60      3.451614 
+#> a     1   3.789434 
+#> ab    15      3.587021 
+#> ab    30      3.583298 
+#> ab    45      3.575603 
+#>  b    60      3.381312 
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'dia', 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -1820,22 +1257,22 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                       GL         SQ            QM      Fc  Pr>Fc
-#> Dia                    4 10613563.6 2653390.90313 17.5794      0
-#> Linhagem               1    40583.7   40583.69514  0.2689 0.6044
-#> Fosforo                5  2183819.2  436763.84085  2.8937  0.014
-#> Dia*Linhagem           4   239350.3    59837.5634  0.3964 0.8112
-#> Dia*Fosforo           20  5300577.2  265028.86235  1.7559 0.0233
-#> Linhagem*Fosforo       5   376520.7   75304.13251  0.4989 0.7771
-#> Dia*Linhagem*Fosforo  20  4670610.2  233530.50817  1.5472 0.0624
-#> Residuo              415 62639214.5   150937.8662               
-#> Total                474 86064239.3                             
+#>                       GL          SQ            QM     Fc  Pr>Fc
+#> Dia                    4  5210433.13 1302608.28351 9.6249      0
+#> Linhagem               1    13298.97   13298.96994 0.0983 0.7542
+#> Fosforo                2   823875.35   411937.6761 3.0438 0.0498
+#> Dia*Linhagem           4   389270.62   97317.65504 0.7191 0.5798
+#> Dia*Fosforo            8  3500381.48   437547.6846  3.233 0.0017
+#> Linhagem*Fosforo       2    98337.30   49168.65214 0.3633 0.6958
+#> Dia*Linhagem*Fosforo   8  1670280.54  208785.06784 1.5427 0.1443
+#> Residuo              205 27744078.60  135336.96879              
+#> Total                234 39449956.00                            
 #> ------------------------------------------------------------------------
-#> CV = 7.23 %
+#> CV = 6.81 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  3.396275e-16 
+#> valor-p:  8.893739e-12 
 #> ATENCAO: a 5% de significancia, os residuos nao podem ser considerados normais!
 #> ------------------------------------------------------------------------
 #> 
@@ -1850,13 +1287,10 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                    GL       SQ        QM      Fc  Pr>Fc
-#> Dia:Fosforo 0.105   4  6983840 1745960.1 11.5674      0
-#> Dia:Fosforo 0.2     4  1312004  328000.9  2.1731 0.0712
-#> Dia:Fosforo 0.391   4   385794   96448.5   0.639 0.6349
-#> Dia:Fosforo 0.438   4  1528152  382037.9  2.5311   0.04
-#> Dia:Fosforo 0.454   4  4599544 1149885.9  7.6183      0
-#> Dia:Fosforo 0.466   4  1109002  277250.4  1.8369 0.1208
-#> Residuo           415 62639214  150937.9               
+#> Dia:Fosforo 0.105   4  6983840 1745960.1 12.9008      0
+#> Dia:Fosforo 0.2     4  1312004  328000.9  2.4236 0.0494
+#> Dia:Fosforo 0.391   4   385794   96448.5  0.7127 0.5841
+#> Residuo           205 27744079  135337.0               
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1875,15 +1309,15 @@ for(i in 1:length(parametros)){
 #> 
 #> 
 #>  Dia  dentro do nivel  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   5300.625
-#> 2       15   5173.729
-#> 3       30   5301.562
-#> 4       45   5502.417
-#> 5       60   5501.979
+#> Teste de Tukey
+#> ------------------------------------------------------------------------
+#> Grupos Tratamentos Medias
+#> a     45      5502.417 
+#> a     60      5501.979 
+#> a     30      5301.562 
+#> a     1   5300.625 
+#> a     15      5173.729 
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1900,58 +1334,19 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Dia  dentro do nivel  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     60      5555.167 
-#> ab    15      5257.458 
-#> ab    45      5228.854 
-#> ab    1   5222.042 
-#>  b    30      5163.979 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro do nivel  0.454  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     60      5800.208 
-#> a     45      5669.979 
-#>  b    1   5275.25 
-#>  b    15      5266.417 
-#>  b    30      5221.417 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro do nivel  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   5347.354
-#> 2       15   5265.792
-#> 3       30   5202.729
-#> 4       45   5287.833
-#> 5       60   5546.594
-#> ------------------------------------------------------------------------
-#> 
-#> 
 #> 
 #> Desdobrando  Fosforo  dentro de cada nivel de  Dia 
 #> ------------------------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                 GL         SQ        QM     Fc  Pr>Fc
-#> Fosforo:Dia 1    5   302209.2  60441.85 0.4004 0.8485
-#> Fosforo:Dia 15   5   144617.2  28923.44 0.1916 0.9657
-#> Fosforo:Dia 30   5   240152.4  48030.47 0.3182  0.902
-#> Fosforo:Dia 45   5  2101342.0 420268.40 2.7844 0.0173
-#> Fosforo:Dia 60   5  4698521.3 939704.26 6.2258      0
-#> Residuo        415 62639214.5 150937.87              
+#>                 GL          SQ         QM      Fc  Pr>Fc
+#> Fosforo:Dia 1    2    96074.09   48037.05  0.3549 0.7016
+#> Fosforo:Dia 15   2   125053.88   62526.94   0.462 0.6307
+#> Fosforo:Dia 30   2    15417.16    7708.58   0.057 0.9446
+#> Fosforo:Dia 45   2    27808.75   13904.38  0.1027 0.9024
+#> Fosforo:Dia 60   2  4033656.17 2016828.09 14.9023      0
+#> Residuo        205 27744078.60  135336.97               
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1964,9 +1359,6 @@ for(i in 1:length(parametros)){
 #> 1    0.105   5317.021
 #> 2      0.2   5300.625
 #> 3    0.391   5404.722
-#> 4    0.438   5222.042
-#> 5    0.454   5275.250
-#> 6    0.466   5347.354
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1978,9 +1370,6 @@ for(i in 1:length(parametros)){
 #> 1    0.105   5234.896
 #> 2      0.2   5173.729
 #> 3    0.391   5300.822
-#> 4    0.438   5257.458
-#> 5    0.454   5266.417
-#> 6    0.466   5265.792
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -1992,96 +1381,233 @@ for(i in 1:length(parametros)){
 #> 1    0.105   5297.500
 #> 2      0.2   5301.562
 #> 3    0.391   5260.844
-#> 4    0.438   5163.979
-#> 5    0.454   5221.417
-#> 6    0.466   5202.729
 #> ------------------------------------------------------------------------
 #> 
 #> 
 #>  Fosforo  dentro do nivel  45  de  Dia 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1    0.105   5520.708
+#> 2      0.2   5502.417
+#> 3    0.391   5461.956
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Fosforo  dentro do nivel  60  de  Dia 
 #> ------------------------------------------------------------------------
 #> Ajuste de modelos polinomiais de regressao
 #> ------------------------------------------------------------------------
 #> 
 #> Modelo Linear
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0 5,564.3280  105.4224   52.7812    0   
-#> b1 -348.7566   285.5192   -1.2215 0.2226 
-#> -----------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#>    45   
-#> --------
-#> 0.107171
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> ==================================================================
-#>                      GL        SQ             QM       Fc  valor.p
-#> ------------------------------------------------------------------
-#> Efeito linear         1   225,202.0000   225,202.0000 1.49 0.2226 
-#> Desvios de Regressao  4  1,876,140.0000  469,035.0000 3.11 0.01541
-#> Residuos             415 62,639,214.0000 150,937.9000             
-#> ------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0 5,533.6370  273.6871   20.2188    0   
-#> b1  -63.0450  2,368.5050  -0.0266 0.9788 
-#> b2 -491.2390  4,042.5970  -0.1215 0.9033 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#>    45   
-#> --------
-#> 0.108231
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> ==================================================================
-#>                      GL        SQ             QM       Fc  valor.p
-#> ------------------------------------------------------------------
-#> Efeito linear         1   225,202.0000   225,202.0000 1.49 0.2226 
-#> Efeito quadratico     1    2,228.7580     2,228.7580  0.01 0.90334
-#> Desvios de Regressao  3  1,873,911.0000  624,637.1000 4.14 0.00658
-#> Residuos             415 62,639,214.0000 150,937.9000             
-#> ------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
 #> ==========================================
 #>    Estimativa  Erro.padrao   tc    valor.p
 #> ------------------------------------------
-#> b0 5,505.3740   581.0754   9.4745     0   
-#> b1  340.9477   7,700.1750  0.0443  0.9647 
-#> b2 -2,112.9460 29,688.0000 -0.0712 0.9433 
-#> b3 1,920.3730  34,828.1100 0.0551  0.9560 
+#> b0 6,133.1590   117.0886   52.3805    0   
+#> b1 -2,152.4790  455.2082   -4.7286    0   
 #> ------------------------------------------
 #> 
-#> R2 do modelo cubico
+#> R2 do modelo linear
 #> --------
-#>    45   
+#>    60   
 #> --------
-#> 0.108450
+#> 0.750197
 #> --------
 #> 
-#> Analise de variancia do modelo cubico
-#> ==================================================================
-#>                      GL        SQ             QM       Fc  valor.p
-#> ------------------------------------------------------------------
-#> Efeito linear         1   225,202.0000   225,202.0000 1.49 0.2226 
-#> Efeito quadratico     1    2,228.7580     2,228.7580  0.01 0.90334
-#> Efeito cubico         1     458.8908       458.8908    0   0.95605
-#> Desvios de Regressao  2  1,873,452.0000  936,726.2000 6.21 0.00221
-#> Residuos             415 62,639,214.0000 150,937.9000             
-#> ------------------------------------------------------------------
+#> Analise de variancia do modelo linear
+#> =====================================================================
+#>                      GL        SQ              QM        Fc   valor.p
+#> ---------------------------------------------------------------------
+#> Efeito linear         1  3,026,037.0000  3,026,037.0000 22.36    0   
+#> Desvios de Regressao  1  1,007,619.0000  1,007,619.0000 7.45  0.00691
+#> Residuos             205 27,744,079.0000  135,337.0000               
+#> ---------------------------------------------------------------------
+#> ------------------------------------------------------------------------
+#> 
+#> Modelo quadratico
+#> ===========================================
+#>     Estimativa  Erro.padrao   tc    valor.p
+#> -------------------------------------------
+#> b0  7,000.3050   338.6825   20.6692    0   
+#> b1 -10,950.5200 3,256.3520  -3.3628 0.0009 
+#> b2 17,294.4500  6,338.2110  2.7286  0.0069 
+#> -------------------------------------------
+#> 
+#> R2 do modelo quadratico
+#> -
+#> 1
+#> -
+#> 
+#> Analise de variancia do modelo quadratico
+#> =====================================================================
+#>                      GL        SQ              QM        Fc   valor.p
+#> ---------------------------------------------------------------------
+#> Efeito linear         1  3,026,037.0000  3,026,037.0000 22.36    0   
+#> Efeito quadratico     1  1,007,619.0000  1,007,619.0000 7.45  0.00691
+#> Desvios de Regressao  0         0              0          0      1   
+#> Residuos             205 27,744,079.0000  135,337.0000               
+#> ---------------------------------------------------------------------
+#> ------------------------------------------------------------------------
+#> 
+#> Analisando os efeitos simples do fator  Linhagem 
+#> ------------------------------------------------------------------------
+#> Linhagem
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>   Niveis   Medias
+#> 1 Dekalb 5407.389
+#> 2      H 5392.340
+#> ------------------------------------------------------------------------
+#> `summarise()` has grouped output by 'dia', 'repeticao', 'linhagem'. You can override using the `.groups` argument.
+#> [1] "-------------------------------------------------"
+#> [1] "Variável: freq_peso"
+#> [1] "-------------------------------------------------"
+#> ------------------------------------------------------------------------
+#> Legenda:
+#> FATOR 1:  Dia 
+#> FATOR 2:  Linhagem 
+#> FATOR 3:  Fosforo 
+#> ------------------------------------------------------------------------
+#> 
+#> ------------------------------------------------------------------------
+#> Quadro da analise de variancia
+#> ------------------------------------------------------------------------
+#>                       GL          SQ        QM      Fc  Pr>Fc
+#> Dia                    4  1834.50233 458.62558  7.9532      0
+#> Linhagem               1   694.30411 694.30411 12.0402  6e-04
+#> Fosforo                2   584.79459  292.3973  5.0706 0.0071
+#> Dia*Linhagem           4   226.75508  56.68877  0.9831 0.4178
+#> Dia*Fosforo            8  1316.13559 164.51695   2.853  0.005
+#> Linhagem*Fosforo       2    85.86083  42.93042  0.7445 0.4763
+#> Dia*Linhagem*Fosforo   8   644.78700  80.59837  1.3977 0.1992
+#> Residuo              205 11821.42276  57.66548               
+#> Total                234 17208.56229                         
+#> ------------------------------------------------------------------------
+#> CV = 8.86 %
+#> 
+#> ------------------------------------------------------------------------
+#> Teste de normalidade dos residuos (Shapiro-Wilk)
+#> valor-p:  2.808378e-09 
+#> ATENCAO: a 5% de significancia, os residuos nao podem ser considerados normais!
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#> 
+#> Interacao Dia*Fosforo  significativa: desdobrando a interacao
+#> ------------------------------------------------------------------------
+#> 
+#> Desdobrando  Dia  dentro de cada nivel de  Fosforo 
+#> ------------------------------------------------------------------------
+#> ------------------------------------------------------------------------
+#> Quadro da analise de variancia
+#> ------------------------------------------------------------------------
+#>                    GL         SQ        QM      Fc  Pr>Fc
+#> Dia:Fosforo 0.105   4  2489.4430 622.36074 10.7926      0
+#> Dia:Fosforo 0.2     4   651.0307 162.75767  2.8224 0.0261
+#> Dia:Fosforo 0.391   4     4.7007   1.17517  0.0204 0.9992
+#> Residuo           205 11821.4228  57.66548               
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#> 
+#>  Dia  dentro do nivel  0.105  de  Fosforo 
+#> ------------------------------------------------------------------------
+#> Teste de Tukey
+#> ------------------------------------------------------------------------
+#> Grupos Tratamentos Medias
+#> a     60      98.10983 
+#>  b    45      88.80446 
+#>  b    30      84.59604 
+#>  b    15      83.80881 
+#>  b    1   83.09223 
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Dia  dentro do nivel  0.2  de  Fosforo 
+#> ------------------------------------------------------------------------
+#> Teste de Tukey
+#> ------------------------------------------------------------------------
+#> Grupos Tratamentos Medias
+#> a     60      89.40262 
+#> ab    45      87.36497 
+#> ab    30      86.23794 
+#> ab    15      82.64997 
+#>  b    1   81.85122 
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Dia  dentro do nivel  0.391  de  Fosforo 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1        1   83.83627
+#> 2       15   83.35228
+#> 3       30   83.56668
+#> 4       45   84.09165
+#> 5       60   83.64765
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#> 
+#> Desdobrando  Fosforo  dentro de cada nivel de  Dia 
+#> ------------------------------------------------------------------------
+#> ------------------------------------------------------------------------
+#> Quadro da analise de variancia
+#> ------------------------------------------------------------------------
+#>                 GL          SQ        QM      Fc  Pr>Fc
+#> Fosforo:Dia 1    2    31.33690  15.66845  0.2717 0.7623
+#> Fosforo:Dia 15   2    10.89759   5.44879  0.0945 0.9099
+#> Fosforo:Dia 30   2    56.53179  28.26590  0.4902 0.6132
+#> Fosforo:Dia 45   2   179.41517  89.70758  1.5557 0.2135
+#> Fosforo:Dia 60   2  1650.09613 825.04806 14.3075      0
+#> Residuo        205 11821.42276  57.66548               
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#> 
+#>  Fosforo  dentro do nivel  1  de  Dia 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1    0.105   83.09223
+#> 2      0.2   81.85122
+#> 3    0.391   83.83627
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Fosforo  dentro do nivel  15  de  Dia 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1    0.105   83.80881
+#> 2      0.2   82.64997
+#> 3    0.391   83.35228
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Fosforo  dentro do nivel  30  de  Dia 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1    0.105   84.59604
+#> 2      0.2   86.23794
+#> 3    0.391   83.56668
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Fosforo  dentro do nivel  45  de  Dia 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1    0.105   88.80446
+#> 2      0.2   87.36497
+#> 3    0.391   84.09165
 #> ------------------------------------------------------------------------
 #> 
 #> 
@@ -2094,91 +1620,60 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0 5,903.3550  105.4224   55.9971    0   
-#> b1 -777.7886   285.5192   -2.7241 0.0067 
+#> b0  101.4650    2.4169    41.9809    0   
+#> b1  -47.8306    9.3964    -5.0903    0   
 #> -----------------------------------------
 #> 
 #> R2 do modelo linear
 #> --------
 #>    60   
 #> --------
-#> 0.238391
+#> 0.905522
 #> --------
 #> 
 #> Analise de variancia do modelo linear
-#> ====================================================================
-#>                      GL        SQ              QM        Fc  valor.p
-#> --------------------------------------------------------------------
-#> Efeito linear         1  1,120,084.0000  1,120,084.0000 7.42 0.00672
-#> Desvios de Regressao  4  3,578,437.0000   894,609.3000  5.93 0.00012
-#> Residuos             415 62,639,214.0000  150,937.9000              
-#> --------------------------------------------------------------------
+#> =============================================================
+#>                      GL      SQ          QM      Fc   valor.p
+#> -------------------------------------------------------------
+#> Efeito linear         1  1,494.1980  1,494.1980 25.91    0   
+#> Desvios de Regressao  1   155.8981    155.8981   2.7  0.10166
+#> Residuos             205 11,821.4200  57.6655                
+#> -------------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
 #> Modelo quadratico
-#> ===========================================
-#>     Estimativa  Erro.padrao   tc    valor.p
-#> -------------------------------------------
-#> b0  6,984.9110   273.6871   25.5215    0   
-#> b1 -10,846.3100 2,368.5050  -4.5794 0.00001
-#> b2 17,311.3400  4,042.5970  4.2822  0.00002
-#> -------------------------------------------
+#> =========================================
+#>    Estimativa Erro.padrao   tc    valor.p
+#> -----------------------------------------
+#> b0  112.2511    6.9911    16.0564    0   
+#> b1 -157.2661    67.2173   -2.3397 0.0203 
+#> b2  215.1191   130.8327   1.6442  0.1017 
+#> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
-#> --------
-#>    60   
-#> --------
-#> 0.827475
-#> --------
+#> -
+#> 1
+#> -
 #> 
 #> Analise de variancia do modelo quadratico
-#> =====================================================================
-#>                      GL        SQ              QM        Fc   valor.p
-#> ---------------------------------------------------------------------
-#> Efeito linear         1  1,120,084.0000  1,120,084.0000 7.42  0.00672
-#> Efeito quadratico     1  2,767,823.0000  2,767,823.0000 18.34  2e-05 
-#> Desvios de Regressao  3   810,613.9000    270,204.6000  1.79  0.14837
-#> Residuos             415 62,639,214.0000  150,937.9000               
-#> ---------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> ===========================================
-#>     Estimativa  Erro.padrao   tc    valor.p
-#> -------------------------------------------
-#> b0  7,126.2950   581.0754   12.2640    0   
-#> b1 -12,867.2500 7,700.1750  -1.6710 0.0955 
-#> b2 25,423.8000  29,688.0000 0.8564  0.3923 
-#> b3 -9,606.5140  34,828.1100 -0.2758 0.7828 
-#> -------------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>    60   
-#> --------
-#> 0.829919
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> =====================================================================
-#>                      GL        SQ              QM        Fc   valor.p
-#> ---------------------------------------------------------------------
-#> Efeito linear         1  1,120,084.0000  1,120,084.0000 7.42  0.00672
-#> Efeito quadratico     1  2,767,823.0000  2,767,823.0000 18.34  2e-05 
-#> Efeito cubico         1    11,483.3900    11,483.3900   0.08  0.78282
-#> Desvios de Regressao  2   799,130.5000    399,565.2000  2.65  0.07204
-#> Residuos             415 62,639,214.0000  150,937.9000               
-#> ---------------------------------------------------------------------
+#> =============================================================
+#>                      GL      SQ          QM      Fc   valor.p
+#> -------------------------------------------------------------
+#> Efeito linear         1  1,494.1980  1,494.1980 25.91    0   
+#> Efeito quadratico     1   155.8981    155.8981   2.7  0.10166
+#> Desvios de Regressao  0       0          0        0      1   
+#> Residuos             205 11,821.4200  57.6655                
+#> -------------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
 #> Analisando os efeitos simples do fator  Linhagem 
 #> ------------------------------------------------------------------------
 #> Linhagem
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> Teste de Tukey
 #> ------------------------------------------------------------------------
-#>   Niveis   Medias
-#> 1 Dekalb 5367.307
-#> 2      H 5385.794
+#> Grupos Tratamentos Medias
+#> a     Dekalb      87.42437 
+#>  b    H   83.98587 
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'dia', 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -2194,232 +1689,52 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                       GL         SQ        QM     Fc  Pr>Fc
-#> Dia                    4   18.76059   4.69015 1.6629 0.1577
-#> Linhagem               1  178.16767 178.16767 63.171      0
-#> Fosforo                5   29.43529   5.88706 2.0873  0.066
-#> Dia*Linhagem           4    5.40625   1.35156 0.4792  0.751
-#> Dia*Fosforo           20   57.41080   2.87054 1.0178 0.4393
-#> Linhagem*Fosforo       5   77.04584  15.40917 5.4635  1e-04
-#> Dia*Linhagem*Fosforo  20   43.27283   2.16364 0.7671 0.7537
-#> Residuo              415 1170.46736    2.8204              
-#> Total                474 1579.96663                        
+#>                       GL        SQ       QM      Fc  Pr>Fc
+#> Dia                    4  25.99571  6.49893  2.3669  0.054
+#> Linhagem               1 229.53340 229.5334 83.5949      0
+#> Fosforo                2   9.65089  4.82544  1.7574 0.1751
+#> Dia*Linhagem           4   0.95193  0.23798  0.0867 0.9865
+#> Dia*Fosforo            8  14.49127  1.81141  0.6597 0.7265
+#> Linhagem*Fosforo       2   0.49311  0.24656  0.0898 0.9142
+#> Dia*Linhagem*Fosforo   8  25.32321   3.1654  1.1528 0.3296
+#> Residuo              205 562.88566  2.74578               
+#> Total                234 869.32519                        
 #> ------------------------------------------------------------------------
-#> CV = 2.24 %
+#> CV = 2.21 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.8380865 
+#> valor-p:  0.8124263 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
-#> 
-#> 
-#> Interacao Linhagem*Fosforo  significativa: desdobrando a interacao
-#> ------------------------------------------------------------------------
-#> 
-#> Desdobrando  Linhagem  dentro de cada nivel de  Fosforo 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                         GL         SQ       QM      Fc  Pr>Fc
-#> Linhagem:Fosforo 0.105   1   80.35195 80.35195 28.4895      0
-#> Linhagem:Fosforo 0.2     1   69.68853 69.68853 24.7087      0
-#> Linhagem:Fosforo 0.391   1   81.53228 81.53228  28.908      0
-#> Linhagem:Fosforo 0.438   1   15.12823 15.12823  5.3639  0.021
-#> Linhagem:Fosforo 0.454   1    0.09913  0.09913  0.0351 0.8514
-#> Linhagem:Fosforo 0.466   1    8.45081  8.45081  2.9963 0.0842
-#> Residuo                415 1170.46736  2.82040               
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.105  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      76.06509 
-#>  b    H   74.06069 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.2  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      75.60452 
-#>  b    H   73.73786 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      76.17795 
-#>  b    H   74.08802 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      75.80501 
-#>  b    H   74.93529 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   75.33716
-#> 2        H   75.40756
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   75.23089
-#> 2        H   74.58086
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                          GL         SQ       QM     Fc  Pr>Fc
-#> Fosforo:Linhagem Dekalb   5   28.19090  5.63818 1.9991 0.0778
-#> Fosforo:Linhagem H&N      5   78.29023 15.65805 5.5517  1e-04
-#> Residuo                 415 1170.46736  2.82040              
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Fosforo  dentro do nivel  Dekalb  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   76.06509
-#> 2      0.2   75.60452
-#> 3    0.391   76.17795
-#> 4    0.438   75.80501
-#> 5    0.454   75.33716
-#> 6    0.466   75.23089
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro do nivel  H&N  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> ==========================================
-#>    Estimativa Erro.padrao    tc    valor.p
-#> ------------------------------------------
-#> b0  73.4471     0.2882    254.8362    0   
-#> b1   2.9833     0.7801     3.8244  0.0001 
-#> ------------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#>   H&N   
-#> --------
-#> 0.526898
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> =========================================================
-#>                      GL      SQ       QM     Fc   valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1   41.2510   41.2510 14.63 0.00015
-#> Desvios de Regressao  4   37.0393   9.2598  3.28  0.01147
-#> Residuos             415 1,170.4670 2.8204               
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> ==========================================
-#>    Estimativa Erro.padrao    tc    valor.p
-#> ------------------------------------------
-#> b0  75.0219     0.7435    100.9011    0   
-#> b1  -11.6653    6.4228    -1.8162  0.0701 
-#> b2  25.1998     10.9672    2.2977  0.0221 
-#> ------------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#>   H&N   
-#> --------
-#> 0.717095
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> =========================================================
-#>                      GL      SQ       QM     Fc   valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1   41.2510   41.2510 14.63 0.00015
-#> Efeito quadratico     1   14.8906   14.8906 5.28  0.02207
-#> Desvios de Regressao  3   22.1487   7.3829  2.62  0.05058
-#> Residuos             415 1,170.4670 2.8204               
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  75.0467     1.5828    47.4149    0   
-#> b1  -12.0187    20.9236   -0.5744 0.5660 
-#> b2  26.6130     80.3854   0.3311  0.7408 
-#> b3  -1.6690     94.0466   -0.0177 0.9858 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>   H&N   
-#> --------
-#> 0.717107
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> =========================================================
-#>                      GL      SQ       QM     Fc   valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1   41.2510   41.2510 14.63 0.00015
-#> Efeito quadratico     1   14.8906   14.8906 5.28  0.02207
-#> Efeito cubico         1    0.0009   0.0009    0   0.98585
-#> Desvios de Regressao  2   22.1478   11.0739 3.93  0.02045
-#> Residuos             415 1,170.4670 2.8204               
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Analisando os efeitos simples do fator  Dia 
+#> Interacao nao significativa: analisando os efeitos simples
 #> ------------------------------------------------------------------------
 #> Dia
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
 #>   Niveis   Medias
-#> 1      1 74.84229
-#> 2     15 74.83649
-#> 3     30 75.26293
-#> 4     45 75.13829
-#> 5     60 75.29207
+#> 1      1 74.50453
+#> 2     15 74.71908
+#> 3     30 74.85644
+#> 4     45 75.09539
+#> 5     60 75.47298
+#> ------------------------------------------------------------------------
+#> Linhagem
+#> Teste de Tukey
+#> ------------------------------------------------------------------------
+#> Grupos Tratamentos Medias
+#> a     Dekalb      75.93924 
+#>  b    H   73.96219 
+#> ------------------------------------------------------------------------
+#> 
+#> Fosforo
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>   Niveis   Medias
+#> 1  0.105 75.06289
+#> 2    0.2 74.67119
+#> 3  0.391 75.06332
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'dia', 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -2435,233 +1750,47 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                       GL         SQ       QM       Fc  Pr>Fc
-#> Dia                    4  379.58443 94.89611  13.5214      0
-#> Linhagem               1  753.13100  753.131 107.3109      0
-#> Fosforo                5  228.22709 45.64542   6.5039      0
-#> Dia*Linhagem           4   78.71729 19.67932    2.804 0.0255
-#> Dia*Fosforo           20   90.33343  4.51667   0.6436 0.8796
-#> Linhagem*Fosforo       5  149.47824 29.89565   4.2597  9e-04
-#> Dia*Linhagem*Fosforo  20  132.66149  6.63307   0.9451 0.5295
-#> Residuo              415 2912.55901  7.01821                
-#> Total                474 4724.69198                         
+#>                       GL         SQ        QM      Fc  Pr>Fc
+#> Dia                    4  123.80280   30.9507  4.2839 0.0024
+#> Linhagem               1  317.58842 317.58842 43.9574      0
+#> Fosforo                2   66.12033  33.06016  4.5759 0.0114
+#> Dia*Linhagem           4   26.65488   6.66372  0.9223 0.4519
+#> Dia*Fosforo            8   60.75670   7.59459  1.0512  0.399
+#> Linhagem*Fosforo       2   20.16335  10.08167  1.3954 0.2501
+#> Dia*Linhagem*Fosforo   8   44.18223   5.52278  0.7644 0.6345
+#> Residuo              205 1481.10870   7.22492               
+#> Total                234 2140.37741                         
 #> ------------------------------------------------------------------------
-#> CV = 4.2 %
+#> CV = 4.23 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.8126643 
+#> valor-p:  0.6121663 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
-#> 
-#> 
-#> Interacao Dia*Linhagem  significativa: desdobrando a interacao
+#> Interacao nao significativa: analisando os efeitos simples
 #> ------------------------------------------------------------------------
-#> 
-#> Desdobrando  Dia  dentro de cada nivel de  Linhagem 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                      GL        SQ       QM     Fc Pr>Fc
-#> Dia:Linhagem Dekalb   4  144.7828 36.19570 5.1574 5e-04
-#> Dia:Linhagem H&N      4  313.5189 78.37973 11.168     0
-#> Residuo             415 2912.5590  7.01821             
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Dia  dentro do nivel  Dekalb  de  Linhagem 
-#> ------------------------------------------------------------------------
+#> Dia
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     1   62.76241 
-#> ab    45      62.25177 
-#> abc   15      62.01135 
-#>  bc   60      61.02642 
-#>   c   30      60.64894 
+#> a     1   64.70638 
+#> ab    45      63.82482 
+#> ab    15      63.3 
+#>  b    60      62.83422 
+#>  b    30      62.7305 
 #> ------------------------------------------------------------------------
 #> 
-#> 
-#>  Dia  dentro do nivel  H&N  de  Linhagem 
-#> ------------------------------------------------------------------------
+#> Linhagem
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     1   66.35417 
-#>  b    45      64.4875 
-#>  b    60      63.89618 
-#>  b    30      63.40521 
-#>  b    15      63.15035 
+#> a     H   64.61722 
+#>  b    Dekalb      62.29167 
 #> ------------------------------------------------------------------------
 #> 
-#> 
-#> 
-#> Desdobrando  Linhagem  dentro de cada nivel de  Dia 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                  GL         SQ        QM      Fc  Pr>Fc
-#> Linhagem:Dia 1    1  306.35782 306.35782 43.6518      0
-#> Linhagem:Dia 15   1   30.80794  30.80794  4.3897 0.0368
-#> Linhagem:Dia 30   1  180.40962 180.40962 25.7059      0
-#> Linhagem:Dia 45   1  118.70063 118.70063 16.9132      0
-#> Linhagem:Dia 60   1  195.57227 195.57227 27.8664      0
-#> Residuo         415 2912.55901   7.01821               
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Linhagem  dentro do nivel  1  de  Dia 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   66.35417 
-#>  b    Dekalb      62.76241 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  15  de  Dia 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   63.15035 
-#>  b    Dekalb      62.01135 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  30  de  Dia 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   63.40521 
-#>  b    Dekalb      60.64894 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  45  de  Dia 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   64.4875 
-#>  b    Dekalb      62.25177 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  60  de  Dia 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   63.89618 
-#>  b    Dekalb      61.02642 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#> Interacao Linhagem*Fosforo  significativa: desdobrando a interacao
-#> ------------------------------------------------------------------------
-#> 
-#> Desdobrando  Linhagem  dentro de cada nivel de  Fosforo 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                         GL         SQ        QM      Fc  Pr>Fc
-#> Linhagem:Fosforo 0.105   1   86.37207  86.37207 12.3068  5e-04
-#> Linhagem:Fosforo 0.2     1  189.31756 189.31756 26.9752      0
-#> Linhagem:Fosforo 0.391   1   52.84172  52.84172  7.5292 0.0063
-#> Linhagem:Fosforo 0.438   1  410.56901 410.56901 58.5005      0
-#> Linhagem:Fosforo 0.454   1   20.46939  20.46939  2.9166 0.0884
-#> Linhagem:Fosforo 0.466   1  127.30217 127.30217 18.1388      0
-#> Residuo                415 2912.55901   7.01821               
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.105  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   64.08167 
-#>  b    Dekalb      62.00354 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.2  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   64.68083 
-#>  b    Dekalb      61.60417 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   65.08917 
-#>  b    Dekalb      63.40667 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   64.13667 
-#>  b    Dekalb      59.60583 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   62.12833
-#> 2        H   63.14000
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.466  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   64.42375 
-#>  b    Dekalb      61.90083 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                          GL         SQ       QM     Fc  Pr>Fc
-#> Fosforo:Linhagem Dekalb   5  289.99191 57.99838  8.264      0
-#> Fosforo:Linhagem H&N      5   87.71342 17.54268 2.4996 0.0302
-#> Residuo                 415 2912.55901  7.01821              
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Fosforo  dentro do nivel  Dekalb  de  Linhagem 
-#> ------------------------------------------------------------------------
+#> Fosforo
 #> Ajuste de modelos polinomiais de regressao
 #> ------------------------------------------------------------------------
 #> 
@@ -2669,24 +1798,22 @@ for(i in 1:length(parametros)){
 #> ==========================================
 #>    Estimativa Erro.padrao    tc    valor.p
 #> ------------------------------------------
-#> b0  62.0744     0.4547    136.5302    0   
-#> b1  -0.9791     1.2322    -0.7946  0.4273 
+#> b0  62.4197     0.3826    163.1489    0   
+#> b1   4.6342     1.4874     3.1156  0.0021 
 #> ------------------------------------------
 #> 
 #> R2 do modelo linear
 #> --------
-#>  Dekalb 
-#> --------
-#> 0.015282
+#> 1.060662
 #> --------
 #> 
 #> Analise de variancia do modelo linear
 #> =========================================================
 #>                      GL      SQ       QM     Fc   valor.p
 #> ---------------------------------------------------------
-#> Efeito linear         1    4.4318   4.4318  0.63  0.42727
-#> Desvios de Regressao  4   285.5602  71.3900 10.17    0   
-#> Residuos             415 2,912.5590 7.0182               
+#> Efeito linear         1   70.1313   70.1313 9.71  0.0021 
+#> Desvios de Regressao  1   -4.0110   -4.0110 -0.56    1   
+#> Residuos             205 1,481.1090 7.2249               
 #> ---------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -2694,142 +1821,24 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0  61.1586     1.1881    51.4745    0   
-#> b1   7.5526     10.3014   0.7332  0.4639 
-#> b2  -14.6610    17.5748   -0.8342 0.4046 
+#> b0  63.3015     1.1067    57.2002    0   
+#> b1  -4.3122     10.6403   -0.4053 0.6857 
+#> b2  17.5861     20.7105   0.8491  0.3968 
 #> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.032124
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> =========================================================
-#>                      GL      SQ       QM     Fc   valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1    4.4318   4.4318  0.63  0.42727
-#> Efeito quadratico     1    4.8840   4.8840   0.7  0.40465
-#> Desvios de Regressao  3   280.6762  93.5587 13.33    0   
-#> Residuos             415 2,912.5590 7.0182               
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  64.1620     2.5162    25.4996    0   
-#> b1  -35.5141    33.4315   -1.0623 0.2887 
-#> b2  158.9188   129.3880   1.2282  0.2201 
-#> b3 -206.1339   152.2301   -1.3541 0.1764 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.076499
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ==========================================================
-#>                      GL      SQ        QM     Fc   valor.p
-#> ----------------------------------------------------------
-#> Efeito linear         1    4.4318    4.4318  0.63  0.42727
-#> Efeito quadratico     1    4.8840    4.8840   0.7  0.40465
-#> Efeito cubico         1   12.8684   12.8684  1.83  0.17644
-#> Desvios de Regressao  2   267.8078  133.9039 19.08    0   
-#> Residuos             415 2,912.5590  7.0182               
-#> ----------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro do nivel  H&N  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> ==========================================
-#>    Estimativa Erro.padrao    tc    valor.p
-#> ------------------------------------------
-#> b0  64.5359     0.4546    141.9483    0   
-#> b1  -0.8098     1.2306    -0.6581  0.5108 
-#> ------------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#>   H&N   
-#> --------
-#> 0.034655
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> ========================================================
-#>                      GL      SQ       QM     Fc  valor.p
-#> --------------------------------------------------------
-#> Efeito linear         1    3.0397   3.0397  0.43 0.51083
-#> Desvios de Regressao  4   84.6737   21.1684 3.02 0.01795
-#> Residuos             415 2,912.5590 7.0182              
-#> --------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  62.2233     1.1729    53.0522    0   
-#> b1  20.7009     10.1317   2.0432  0.0417 
-#> b2  -37.0047    17.3004   -2.1390 0.0330 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#>   H&N   
-#> --------
-#> 0.400726
-#> --------
+#> -
+#> 1
+#> -
 #> 
 #> Analise de variancia do modelo quadratico
 #> ========================================================
 #>                      GL      SQ       QM     Fc  valor.p
 #> --------------------------------------------------------
-#> Efeito linear         1    3.0397   3.0397  0.43 0.51083
-#> Efeito quadratico     1   32.1093   32.1093 4.58 0.03302
-#> Desvios de Regressao  3   52.5644   17.5215 2.5  0.05934
-#> Residuos             415 2,912.5590 7.0182              
-#> --------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  63.5803     2.4968    25.4653    0   
-#> b1   1.3618     33.0061   0.0413  0.9671 
-#> b2  40.3322    126.8046   0.3181  0.7506 
-#> b3  -91.3340   148.3545   -0.6156 0.5385 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>   H&N   
-#> --------
-#> 0.431052
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ========================================================
-#>                      GL      SQ       QM     Fc  valor.p
-#> --------------------------------------------------------
-#> Efeito linear         1    3.0397   3.0397  0.43 0.51083
-#> Efeito quadratico     1   32.1093   32.1093 4.58 0.03302
-#> Efeito cubico         1    2.6600   2.6600  0.38 0.53847
-#> Desvios de Regressao  2   49.9043   24.9522 3.56 0.02945
-#> Residuos             415 2,912.5590 7.0182              
+#> Efeito linear         1   70.1313   70.1313 9.71 0.0021 
+#> Efeito quadratico     1    5.2094   5.2094  0.72 0.39679
+#> Desvios de Regressao  0   -9.2204      0     0      1   
+#> Residuos             205 1,481.1090 7.2249              
 #> --------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'dia', 'repeticao', 'linhagem'. You can override using the `.groups` argument.
@@ -2847,571 +1856,88 @@ for(i in 1:length(parametros)){
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
 #>                       GL        SQ      QM     Fc  Pr>Fc
-#> Dia                    4   4.20154 1.05039 2.0798 0.0826
-#> Linhagem               1   4.47953 4.47953 8.8697 0.0031
-#> Fosforo                5   7.72726 1.54545 3.0601   0.01
-#> Dia*Linhagem           4   2.97125 0.74281 1.4708 0.2102
-#> Dia*Fosforo           20  17.50230 0.87511 1.7328 0.0261
-#> Linhagem*Fosforo       5   9.33738 1.86748 3.6977 0.0028
-#> Dia*Linhagem*Fosforo  20  24.44476 1.22224 2.4201  6e-04
-#> Residuo              415 209.59108 0.50504              
-#> Total                474 280.25510                      
+#> Dia                    4   6.06603 1.51651 2.9932 0.0198
+#> Linhagem               1   2.02466 2.02466 3.9962 0.0469
+#> Fosforo                2   1.86024 0.93012 1.8358 0.1621
+#> Dia*Linhagem           4   3.49506 0.87376 1.7246 0.1458
+#> Dia*Fosforo            8   3.63805 0.45476 0.8976 0.5194
+#> Linhagem*Fosforo       2   6.62856 3.31428 6.5416 0.0018
+#> Dia*Linhagem*Fosforo   8   2.84634 0.35579 0.7022 0.6894
+#> Residuo              205 103.86292 0.50665              
+#> Total                234 130.42187                      
 #> ------------------------------------------------------------------------
-#> CV = 10.72 %
+#> CV = 10.83 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  2.223689e-05 
-#> ATENCAO: a 5% de significancia, os residuos nao podem ser considerados normais!
+#> valor-p:  0.1339947 
+#> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
 #> 
 #> 
-#> Interacao Dia*Linhagem*Fosforo  significativa: desdobrando a interacao
+#> Interacao Linhagem*Fosforo  significativa: desdobrando a interacao
 #> ------------------------------------------------------------------------
 #> 
-#> Desdobrando  Dia  dentro de cada nivel de  Linhagem e Fosforo 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                    GL          SQ         QM       Fc    Pr>Fc
-#> Dia: Dekalb 0.105   4   5.0199018 1.25497544 2.484909 0.043102
-#> Dia: Dekalb 0.2     4   2.4464842 0.61162105 1.211038  0.30544
-#> Dia: Dekalb 0.391   4   2.5737544 0.64343860 1.274038 0.279458
-#> Dia: Dekalb 0.438   4   9.5288140 2.38220351 4.716873 0.000987
-#> Dia: Dekalb 0.454   4   5.5296561 1.38241404 2.737243 0.028507
-#> Dia: Dekalb 0.466   4  15.2010947 3.80027368 7.524717    7e-06
-#> Dia: H&N 0.105      4   1.8429754 0.46074386 0.912294 0.456623
-#> Dia: H&N 0.2        4   0.3522526 0.08806316 0.174369 0.951505
-#> Dia: H&N 0.391      4   3.6113404 0.90283509 1.787655 0.130353
-#> Dia: H&N 0.438      4   0.1306386 0.03265965 0.064668 0.992293
-#> Dia: H&N 0.454      4   0.3159579 0.07898947 0.156403 0.960057
-#> Dia: H&N 0.466      4   2.7163509 0.67908772 1.344625 0.252607
-#> Residuo           415 209.5910813 0.50503875                  
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.105  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     60      7.045833 
-#> a     45      6.320833 
-#> a     15      6.183333 
-#> a     30      6.145833 
-#> a     1   6.091667 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   6.250000
-#> 2       15   6.433333
-#> 3       30   6.608333
-#> 4       45   5.925000
-#> 5       60   6.545833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.391  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   6.852381
-#> 2       15   6.328571
-#> 3       30   7.152381
-#> 4       45   6.566667
-#> 5       60   6.933333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     15      7.45 
-#>  b    45      6.366667 
-#>  b    60      6.316667 
-#>  b    1   6.170833 
-#>  b    30      6.158333 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.454  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     30      6.879167 
-#> ab    1   6.75 
-#> ab    45      6.470833 
-#> ab    60      6.183333 
-#>  b    15      5.866667 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.466  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     15      7.795833 
-#> ab    1   7.1375 
-#>  bc   30      6.733333 
-#>  bc   60      6.333333 
-#>   c   45      6.05625 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   7.050000
-#> 2       15   6.620833
-#> 3       30   7.262500
-#> 4       45   6.887500
-#> 5       60   6.854167
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   6.616667
-#> 2       15   6.495833
-#> 3       30   6.660417
-#> 4       45   6.566667
-#> 5       60   6.395833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.391  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   6.620833
-#> 2       15   6.291667
-#> 3       30   7.037500
-#> 4       45   6.187500
-#> 5       60   6.441667
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   6.995833
-#> 2       15   6.991667
-#> 3       30   7.083333
-#> 4       45   6.908333
-#> 5       60   6.962500
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   6.512500
-#> 2       15   6.666667
-#> 3       30   6.587500
-#> 4       45   6.587500
-#> 5       60   6.404167
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   6.666667
-#> 2       15   6.504167
-#> 3       30   6.850000
-#> 4       45   6.745833
-#> 5       60   7.275000
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#> Desdobrando  Linhagem  dentro de cada nivel de  Dia e Fosforo 
+#> Desdobrando  Linhagem  dentro de cada nivel de  Fosforo 
 #> ------------------------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                     GL           SQ         QM        Fc    Pr>Fc
-#> Linhagem: 1 0.105    1   3.71228070 3.71228070  7.350487 0.006983
-#> Linhagem: 1 0.2      1   0.54343860 0.54343860  1.076033 0.300191
-#> Linhagem: 1 0.391    1   1.57894737 1.57894737  3.126389 0.077769
-#> Linhagem: 1 0.438    1   2.75115789 2.75115789  5.447419 0.020074
-#> Linhagem: 1 0.454    1   0.22800000 0.22800000  0.451451 0.502021
-#> Linhagem: 1 0.466    1   0.89607018 0.89607018   1.77426 0.183587
-#> Linhagem: 15 0.105   1   0.77368421 0.77368421   1.53193 0.216523
-#> Linhagem: 15 0.2     1   0.01578947 0.01578947  0.031264 0.859739
-#> Linhagem: 15 0.391   1   2.29901754 2.29901754  4.552161 0.033463
-#> Linhagem: 15 0.438   1   0.84912281 0.84912281  1.681302 0.195472
-#> Linhagem: 15 0.454   1   2.58694737 2.58694737  5.122275 0.024136
-#> Linhagem: 15 0.466   1   6.74385965 6.74385965 13.353153 0.000291
-#> Linhagem: 30 0.105   1   5.04028070 5.04028070  9.979988 0.001698
-#> Linhagem: 30 0.2     1   0.01096491 0.01096491  0.021711  0.88293
-#> Linhagem: 30 0.391   1   2.45396491 2.45396491  4.858964 0.028051
-#> Linhagem: 30 0.438   1   3.45852632 3.45852632  6.848041 0.009198
-#> Linhagem: 30 0.454   1   0.34385965 0.34385965  0.680858 0.409765
-#> Linhagem: 30 0.466   1   0.05501754 0.05501754  0.108937 0.741524
-#> Linhagem: 45 0.105   1   1.29796491 1.29796491   2.57003 0.109666
-#> Linhagem: 45 0.2     1   1.66428070 1.66428070  3.295352 0.070198
-#> Linhagem: 45 0.391   1   0.78849123 0.78849123  1.561249 0.212187
-#> Linhagem: 45 0.438   1   1.18596491 1.18596491  2.348265 0.126184
-#> Linhagem: 45 0.454   1   0.05501754 0.05501754  0.108937 0.741524
-#> Linhagem: 45 0.466   1   1.92212281 1.92212281  3.805892 0.051745
-#> Linhagem: 60 0.105   1   0.14849123 0.14849123  0.294019 0.587947
-#> Linhagem: 60 0.2     1   0.09094737 0.09094737   0.18008 0.671524
-#> Linhagem: 60 0.391   1   0.56842105 0.56842105    1.1255 0.289354
-#> Linhagem: 60 0.438   1   1.68596491 1.68596491  3.338288 0.068403
-#> Linhagem: 60 0.454   1   0.19712281 0.19712281  0.390312 0.532479
-#> Linhagem: 60 0.466   1   3.58428070 3.58428070  7.097041 0.008022
-#> Residuo            415 209.59108135 0.50503875                   
+#>                         GL        SQ      QM      Fc  Pr>Fc
+#> Linhagem:Fosforo 0.105   1   6.67013 6.67013 13.1652  4e-04
+#> Linhagem:Fosforo 0.2     1   0.75725 0.75725  1.4946 0.2229
+#> Linhagem:Fosforo 0.391   1   1.17446 1.17446  2.3181 0.1294
+#> Residuo                205 103.86292 0.50665               
 #> ------------------------------------------------------------------------
 #> 
 #> 
 #> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.105  de  Fosforo 
+#>  Linhagem  dentro do nivel  0.105  de  Fosforo 
 #> ------------------------------------------------------------------------
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     H   7.05 
-#>  b    Dekalb      6.091667 
+#> a     H   6.935 
+#>  b    Dekalb      6.3575 
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.250000
-#> 2        H   6.616667
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.391  de  Fosforo 
+#>  Linhagem  dentro do nivel  0.2  de  Fosforo 
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
 #>     Niveis     Medias
-#> 1   Dekalb   6.852381
-#> 2        H   6.620833
+#> 1   Dekalb   6.352500
+#> 2        H   6.547083
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   6.995833 
-#>  b    Dekalb      6.170833 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.454  de  Fosforo 
+#>  Linhagem  dentro do nivel  0.391  de  Fosforo 
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
 #>     Niveis     Medias
-#> 1   Dekalb     6.7500
-#> 2        H     6.5125
+#> 1   Dekalb   6.766667
+#> 2        H   6.515833
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.466  de  Fosforo 
 #> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   7.137500
-#> 2        H   6.666667
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.183333
-#> 2        H   6.620833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.433333
-#> 2        H   6.495833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      6.328571 
-#> a     H   6.291667 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   7.450000
-#> 2        H   6.991667
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.454  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   6.666667 
-#>  b    Dekalb      5.866667 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.466  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      7.795833 
-#>  b    H   6.504167 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.105  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   7.2625 
-#>  b    Dekalb      6.145833 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.608333
-#> 2        H   6.660417
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      7.152381 
-#> a     H   7.0375 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   7.083333 
-#>  b    Dekalb      6.158333 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.879167
-#> 2        H   6.587500
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.733333
-#> 2        H   6.850000
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.320833
-#> 2        H   6.887500
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   5.925000
-#> 2        H   6.566667
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.391  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.566667
-#> 2        H   6.187500
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.366667
-#> 2        H   6.908333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.470833
-#> 2        H   6.587500
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.056250
-#> 2        H   6.745833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   7.045833
-#> 2        H   6.854167
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.545833
-#> 2        H   6.395833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.391  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.933333
-#> 2        H   6.441667
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.316667
-#> 2        H   6.962500
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   6.183333
-#> 2        H   6.404167
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.466  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   7.275 
-#>  b    Dekalb      6.333333 
-#> ------------------------------------------------------------------------
-#> 
-#> Desdobrando  Fosforo  dentro de cada nivel de  Dia e Linhagem 
+#> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
 #> ------------------------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                     GL         SQ        QM       Fc    Pr>Fc
-#> Fosforo: 1 Dekalb    5   8.082924 1.6165848 3.200912 0.007563
-#> Fosforo: 1 H&N       5   2.004982 0.4009965 0.793992 0.554417
-#> Fosforo: 15 Dekalb   5  32.353591 6.4707181 12.81232        0
-#> Fosforo: 15 H&N      5   2.208959 0.4417918 0.874768 0.497922
-#> Fosforo: 30 Dekalb   5   4.063906 0.8127813 1.609344 0.156323
-#> Fosforo: 30 H&N      5   2.751702 0.5503404 1.089699 0.365398
-#> Fosforo: 45 Dekalb   5   3.248170 0.6496339 1.286305 0.268762
-#> Fosforo: 45 H&N      5   2.886363 0.5772725 1.143026 0.336869
-#> Fosforo: 60 Dekalb   5   4.902363 0.9804725 1.941381 0.086434
-#> Fosforo: 60 H&N      5   5.393029 1.0786058 2.135689 0.060342
-#> Residuo            415 209.591081 0.5050388                  
+#>                          GL        SQ      QM     Fc  Pr>Fc
+#> Fosforo:Linhagem Dekalb   2   4.12671 2.06336 4.0726 0.0184
+#> Fosforo:Linhagem H&N      2   4.36209 2.18104 4.3048 0.0147
+#> Residuo                 205 103.86292 0.50665              
 #> ------------------------------------------------------------------------
 #> 
 #> 
 #> 
-#>  Fosforo  dentro da combinacao dos niveis  1  de  Dia  e  Dekalb  de  Linhagem 
+#>  Fosforo  dentro do nivel  Dekalb  de  Linhagem 
 #> ------------------------------------------------------------------------
 #> Ajuste de modelos polinomiais de regressao
 #> ------------------------------------------------------------------------
@@ -3420,93 +1946,54 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   5.8769     0.2727    21.5494    0   
-#> b1   1.9294     0.7391    2.6105  0.0094 
+#> b0   6.1379     0.1442    42.5562    0   
+#> b1   1.5210     0.5689    2.6736  0.0081 
 #> -----------------------------------------
 #> 
 #> R2 do modelo linear
 #> --------
-#> 0.425812
+#>  Dekalb 
+#> --------
+#> 0.877574
 #> --------
 #> 
 #> Analise de variancia do modelo linear
 #> =====================================================
 #>                      GL     SQ      QM    Fc  valor.p
 #> -----------------------------------------------------
-#> Efeito linear         1   3.4418  3.4418 6.81 0.00937
-#> Desvios de Regressao  4   4.6411  1.1603 2.3  0.05838
-#> Residuos             415 209.5911 0.5050             
+#> Efeito linear         1   3.6215  3.6215 7.15 0.00811
+#> Desvios de Regressao  1   0.5052  0.5052  1   0.31917
+#> Residuos             205 103.8629 0.5066             
 #> -----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
 #> Modelo quadratico
-#> ========================================
-#>    Estimativa Erro.padrao   tc   valor.p
-#> ----------------------------------------
-#> b0   6.0229     0.7127    8.4510    0   
-#> b1   0.5693     6.1792    0.0921 0.9266 
-#> b2   2.3373     10.5420   0.2217 0.8246 
-#> ----------------------------------------
+#> =========================================
+#>    Estimativa Erro.padrao   tc    valor.p
+#> -----------------------------------------
+#> b0   6.5261     0.4146    15.7401    0   
+#> b1  -2.4212     3.9886    -0.6070 0.5445 
+#> b2   7.7659     7.7769    0.9986  0.3192 
+#> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
-#> --------
-#> 0.428883
-#> --------
+#> -
+#> 1
+#> -
 #> 
 #> Analise de variancia do modelo quadratico
 #> =====================================================
 #>                      GL     SQ      QM    Fc  valor.p
 #> -----------------------------------------------------
-#> Efeito linear         1   3.4418  3.4418 6.81 0.00937
-#> Efeito quadratico     1   0.0248  0.0248 0.05 0.82465
-#> Desvios de Regressao  3   4.6163  1.5388 3.05 0.02861
-#> Residuos             415 209.5911 0.5050             
-#> -----------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   5.3694     1.5093    3.5575  0.0004 
-#> b1   9.9405     20.0535   0.4957  0.6204 
-#> b2  -35.4332    77.6118   -0.4565 0.6482 
-#> b3  44.8542     91.3134   0.4912  0.6235 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#> 0.443960
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> =====================================================
-#>                      GL     SQ      QM    Fc  valor.p
-#> -----------------------------------------------------
-#> Efeito linear         1   3.4418  3.4418 6.81 0.00937
-#> Efeito quadratico     1   0.0248  0.0248 0.05 0.82465
-#> Efeito cubico         1   0.1219  0.1219 0.24 0.62354
-#> Desvios de Regressao  2   4.4944  2.2472 4.45 0.01225
-#> Residuos             415 209.5911 0.5050             
+#> Efeito linear         1   3.6215  3.6215 7.15 0.00811
+#> Efeito quadratico     1   0.5052  0.5052  1   0.31917
+#> Desvios de Regressao  0     0       0     0      1   
+#> Residuos             205 103.8629 0.5066             
 #> -----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Fosforo  dentro da combinacao dos niveis  1  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   7.050000
-#> 2      0.2   6.616667
-#> 3    0.391   6.620833
-#> 4    0.438   6.995833
-#> 5    0.454   6.512500
-#> 6    0.466   6.666667
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  15  de  Dia  e  Dekalb  de  Linhagem 
+#>  Fosforo  dentro do nivel  H&N  de  Linhagem 
 #> ------------------------------------------------------------------------
 #> Ajuste de modelos polinomiais de regressao
 #> ------------------------------------------------------------------------
@@ -3515,173 +2002,63 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   5.9192     0.2727    21.7042    0   
-#> b1   2.2400     0.7391    3.0308  0.0026 
+#> b0   6.9625     0.1424    48.8814    0   
+#> b1  -1.2781     0.5463    -2.3393 0.0203 
 #> -----------------------------------------
 #> 
 #> R2 do modelo linear
 #> --------
-#> 0.143388
+#>   H&N   
+#> --------
+#> 0.635620
 #> --------
 #> 
 #> Analise de variancia do modelo linear
-#> ======================================================
-#>                      GL     SQ      QM    Fc   valor.p
-#> ------------------------------------------------------
-#> Efeito linear         1   4.6391  4.6391 9.19  0.00259
-#> Desvios de Regressao  4  27.7145  6.9286 13.72    0   
-#> Residuos             415 209.5911 0.5050              
-#> ------------------------------------------------------
+#> =====================================================
+#>                      GL     SQ      QM    Fc  valor.p
+#> -----------------------------------------------------
+#> Efeito linear         1   2.7726  2.7726 5.47 0.02028
+#> Desvios de Regressao  1   1.5895  1.5895 3.14 0.07801
+#> Residuos             205 103.8629 0.5066             
+#> -----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
 #> Modelo quadratico
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0   6.6269     0.7127    9.2984     0   
-#> b1  -4.3538     6.1792    -0.7046 0.4815 
-#> b2  11.3308     10.5420   1.0748  0.2831 
+#> b0   7.6516     0.4143    18.4689    0   
+#> b1  -8.2635     3.9815    -2.0755 0.0392 
+#> b2  13.7053     7.7378    1.7712  0.0780 
 #> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
-#> --------
-#> 0.161421
-#> --------
+#> -
+#> 1
+#> -
 #> 
 #> Analise de variancia do modelo quadratico
-#> ======================================================
-#>                      GL     SQ      QM    Fc   valor.p
-#> ------------------------------------------------------
-#> Efeito linear         1   4.6391  4.6391 9.19  0.00259
-#> Efeito quadratico     1   0.5834  0.5834 1.16  0.28308
-#> Desvios de Regressao  3  27.1310  9.0437 17.91    0   
-#> Residuos             415 209.5911 0.5050              
-#> ------------------------------------------------------
+#> =====================================================
+#>                      GL     SQ      QM    Fc  valor.p
+#> -----------------------------------------------------
+#> Efeito linear         1   2.7726  2.7726 5.47 0.02028
+#> Efeito quadratico     1   1.5895  1.5895 3.14 0.07801
+#> Desvios de Regressao  0     0       0     0      1   
+#> Residuos             205 103.8629 0.5066             
+#> -----------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   4.4475     1.5093    2.9467  0.0034 
-#> b1  26.8976     20.0535   1.3413  0.1806 
-#> b2 -114.6274    77.6118   -1.4769 0.1404 
-#> b3  149.5811    91.3134   1.6381  0.1022 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#> 0.203309
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> =======================================================
-#>                      GL     SQ      QM     Fc   valor.p
-#> -------------------------------------------------------
-#> Efeito linear         1   4.6391  4.6391  9.19  0.00259
-#> Efeito quadratico     1   0.5834  0.5834  1.16  0.28308
-#> Efeito cubico         1   1.3552  1.3552  2.68  0.10216
-#> Desvios de Regressao  2  25.7758  12.8879 25.52    0   
-#> Residuos             415 209.5911 0.5050               
-#> -------------------------------------------------------
+#> Analisando os efeitos simples do fator  Dia 
 #> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  15  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> Dia
+#> Teste de Tukey
 #> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   6.620833
-#> 2      0.2   6.495833
-#> 3    0.391   6.291667
-#> 4    0.438   6.991667
-#> 5    0.454   6.666667
-#> 6    0.466   6.504167
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  30  de  Dia  e  Dekalb  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   6.145833
-#> 2      0.2   6.608333
-#> 3    0.391   7.152381
-#> 4    0.438   6.158333
-#> 5    0.454   6.879167
-#> 6    0.466   6.733333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  30  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   7.262500
-#> 2      0.2   6.660417
-#> 3    0.391   7.037500
-#> 4    0.438   7.083333
-#> 5    0.454   6.587500
-#> 6    0.466   6.850000
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  45  de  Dia  e  Dekalb  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   6.320833
-#> 2      0.2   5.925000
-#> 3    0.391   6.566667
-#> 4    0.438   6.366667
-#> 5    0.454   6.470833
-#> 6    0.466   6.056250
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  45  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   6.887500
-#> 2      0.2   6.566667
-#> 3    0.391   6.187500
-#> 4    0.438   6.908333
-#> 5    0.454   6.587500
-#> 6    0.466   6.745833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  60  de  Dia  e  Dekalb  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   7.045833
-#> 2      0.2   6.545833
-#> 3    0.391   6.933333
-#> 4    0.438   6.316667
-#> 5    0.454   6.183333
-#> 6    0.466   6.333333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  60  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   6.854167
-#> 2      0.2   6.395833
-#> 3    0.391   6.441667
-#> 4    0.438   6.962500
-#> 5    0.454   6.404167
-#> 6    0.466   7.275000
+#> Grupos Tratamentos Medias
+#> a     30      6.803901 
+#> ab    60      6.697872 
+#> ab    1   6.574468 
+#> ab    45      6.405674 
+#>  b    15      6.393617 
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'dia', 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -3697,572 +2074,100 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                       GL          SQ       QM     Fc  Pr>Fc
-#> Dia                    4   307.00720  76.7518 3.1942 0.0133
-#> Linhagem               1    39.27573 39.27573 1.6346 0.2018
-#> Fosforo                5   369.40539 73.88108 3.0748 0.0097
-#> Dia*Linhagem           4   100.67044 25.16761 1.0474 0.3824
-#> Dia*Fosforo           20   898.15553 44.90778  1.869 0.0132
-#> Linhagem*Fosforo       5   453.13019 90.62604 3.7717 0.0024
-#> Dia*Linhagem*Fosforo  20   902.82220 45.14111 1.8787 0.0126
-#> Residuo              415  9971.69881 24.02819              
-#> Total                474 13042.16550                       
+#>                       GL         SQ        QM     Fc  Pr>Fc
+#> Dia                    4  369.84485  92.46121 3.7832 0.0054
+#> Linhagem               1   12.72386  12.72386 0.5206 0.4714
+#> Fosforo                2   81.65722  40.82861 1.6706 0.1907
+#> Dia*Linhagem           4   97.28494  24.32123 0.9951 0.4112
+#> Dia*Fosforo            8  208.32369  26.04046 1.0655 0.3887
+#> Linhagem*Fosforo       2  353.51832 176.75916 7.2323  9e-04
+#> Dia*Linhagem*Fosforo   8  110.36431  13.79554 0.5645 0.8063
+#> Residuo              205 5010.21620  24.44008              
+#> Total                234 6243.93340                        
 #> ------------------------------------------------------------------------
-#> CV = 6.17 %
+#> CV = 6.26 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.53995 
+#> valor-p:  0.9880496 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
 #> 
 #> 
-#> Interacao Dia*Linhagem*Fosforo  significativa: desdobrando a interacao
+#> Interacao Linhagem*Fosforo  significativa: desdobrando a interacao
 #> ------------------------------------------------------------------------
 #> 
-#> Desdobrando  Dia  dentro de cada nivel de  Linhagem e Fosforo 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                    GL         SQ         QM       Fc    Pr>Fc
-#> Dia: Dekalb 0.105   4  159.21648  39.804121 1.656559 0.159226
-#> Dia: Dekalb 0.2     4  135.16284  33.790709 1.406294 0.231008
-#> Dia: Dekalb 0.391   4  157.82473  39.456182 1.642079 0.162751
-#> Dia: Dekalb 0.438   4  420.39203 105.098007 4.373946 0.001785
-#> Dia: Dekalb 0.454   4  239.45948  59.864870 2.491443 0.042646
-#> Dia: Dekalb 0.466   4  624.90094 156.225235 6.501748  4.4e-05
-#> Dia: H&N 0.105      4   99.55425  24.888561 1.035807 0.388358
-#> Dia: H&N 0.2        4   31.23105   7.807761 0.324942  0.86123
-#> Dia: H&N 0.391      4  188.55382  47.138456 1.961798 0.099478
-#> Dia: H&N 0.438      4   30.47001   7.617502 0.317024 0.866578
-#> Dia: H&N 0.454      4   25.15913   6.289782 0.261767 0.902391
-#> Dia: H&N 0.466      4   97.43324  24.358309 1.013739 0.399953
-#> Residuo           415 9971.69881  24.028190                  
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   75.74167
-#> 2       15   76.90833
-#> 3       30   76.45417
-#> 4       45   78.07083
-#> 5       60   81.38021
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   77.14167
-#> 2       15   78.27500
-#> 3       30   80.38333
-#> 4       45   75.38750
-#> 5       60   79.90833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.391  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   80.40952
-#> 2       15   77.42857
-#> 3       30   83.79524
-#> 4       45   78.46190
-#> 5       60   81.58571
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     15      85.775 
-#>  b    45      78.55 
-#>  b    60      77.925 
-#>  b    30      77.52083 
-#>  b    1   77.17917 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.454  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     30      81.59583 
-#> ab    1   80.3625 
-#> ab    45      78.33333 
-#> ab    60      77.62083 
-#>  b    15      74.52917 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  Dekalb  de  Linhagem  e  0.466  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     15      87.225 
-#> ab    1   82.74583 
-#> abc   30      81.0625 
-#>  bc   60      77.95417 
-#>   c   45      75.87917 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   81.84167
-#> 2       15   78.78333
-#> 3       30   83.67917
-#> 4       45   81.10833
-#> 5       60   81.40000
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   76.90000
-#> 2       15   78.63333
-#> 3       30   79.42083
-#> 4       45   77.77500
-#> 5       60   77.55417
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.391  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   78.87083
-#> 2       15   76.13750
-#> 3       30   81.61667
-#> 4       45   75.54583
-#> 5       60   78.01667
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   80.32083
-#> 2       15   82.30833
-#> 3       30   82.85833
-#> 4       45   81.33750
-#> 5       60   81.53333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   78.25833
-#> 2       15   80.03750
-#> 3       30   79.57917
-#> 4       45   79.77917
-#> 5       60   78.17500
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Dia  dentro da combinacao dos niveis  H&N  de  Linhagem  e  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1        1   78.21250
-#> 2       15   79.23333
-#> 3       30   81.18750
-#> 4       45   79.43333
-#> 5       60   82.57292
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#> Desdobrando  Linhagem  dentro de cada nivel de  Dia e Fosforo 
+#> Desdobrando  Linhagem  dentro de cada nivel de  Fosforo 
 #> ------------------------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                     GL           SQ           QM        Fc    Pr>Fc
-#> Linhagem: 1 0.105    1 1.504067e+02 1.504067e+02  6.259595 0.012736
-#> Linhagem: 1 0.2      1 2.360702e-01 2.360702e-01  0.009825 0.921091
-#> Linhagem: 1 0.391    1 2.929017e+02 2.929017e+02 12.189919 0.000532
-#> Linhagem: 1 0.438    1 3.989586e+01 3.989586e+01  1.660377  0.19827
-#> Linhagem: 1 0.454    1 1.789649e+01 1.789649e+01  0.744812 0.388622
-#> Linhagem: 1 0.466    1 8.306975e+01 8.306975e+01  3.457179 0.063685
-#> Linhagem: 15 0.105   1 1.421053e+01 1.421053e+01  0.591411 0.442312
-#> Linhagem: 15 0.2     1 5.190175e-01 5.190175e-01    0.0216 0.883227
-#> Linhagem: 15 0.391   1 2.843627e+02 2.843627e+02 11.834547  0.00064
-#> Linhagem: 15 0.438   1 4.857712e+01 4.857712e+01  2.021672 0.155819
-#> Linhagem: 15 0.454   1 1.226445e+02 1.226445e+02  5.104192 0.024386
-#> Linhagem: 15 0.466   1 2.581561e+02 2.581561e+02 10.743883 0.001134
-#> Linhagem: 30 0.105   1 2.110004e+02 2.110004e+02   8.78137 0.003218
-#> Linhagem: 30 0.2     1 3.744632e+00 3.744632e+00  0.155843 0.693216
-#> Linhagem: 30 0.391   1 2.781811e+02 2.781811e+02 11.577282 0.000732
-#> Linhagem: 30 0.438   1 1.151552e+02 1.151552e+02  4.792502  0.02914
-#> Linhagem: 30 0.454   1 1.643902e+01 1.643902e+01  0.684155 0.408635
-#> Linhagem: 30 0.466   1 6.315789e-02 6.315789e-02  0.002628 0.959136
-#> Linhagem: 45 0.105   1 3.729411e+01 3.729411e+01  1.552098 0.213529
-#> Linhagem: 45 0.2     1 2.304063e+01 2.304063e+01    0.9589 0.328035
-#> Linhagem: 45 0.391   1 1.919801e+02 1.919801e+02  7.989785 0.004932
-#> Linhagem: 45 0.438   1 3.140779e+01 3.140779e+01  1.307123 0.253575
-#> Linhagem: 45 0.454   1 8.449754e+00 8.449754e+00   0.35166 0.553498
-#> Linhagem: 45 0.466   1 5.106028e+01 5.106028e+01  2.125016 0.145668
-#> Linhagem: 60 0.105   1 1.583333e-03 1.583333e-03   6.6e-05 0.993527
-#> Linhagem: 60 0.2     1 2.240175e+01 2.240175e+01  0.932311 0.334825
-#> Linhagem: 60 0.391   1 1.776338e+02 1.776338e+02  7.392723 0.006824
-#> Linhagem: 60 0.438   1 5.262849e+01 5.262849e+01  2.190281 0.139643
-#> Linhagem: 60 0.454   1 1.241333e+00 1.241333e+00  0.051662 0.820309
-#> Linhagem: 60 0.466   1 8.622963e+01 8.622963e+01  3.588686 0.058869
-#> Residuo            415 9.971699e+03 2.402819e+01                   
+#>                         GL         SQ        QM      Fc  Pr>Fc
+#> Linhagem:Fosforo 0.105   1  266.66296 266.66296 10.9109 0.0011
+#> Linhagem:Fosforo 0.2     1    0.52813   0.52813  0.0216 0.8833
+#> Linhagem:Fosforo 0.391   1   98.63425  98.63425  4.0358 0.0459
+#> Residuo                205 5010.21620  24.44008               
 #> ------------------------------------------------------------------------
 #> 
 #> 
 #> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.105  de  Fosforo 
+#>  Linhagem  dentro do nivel  0.105  de  Fosforo 
 #> ------------------------------------------------------------------------
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     H   81.84167 
-#>  b    Dekalb      75.74167 
+#> a     H   81.3625 
+#>  b    Dekalb      77.71104 
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.2  de  Fosforo 
+#>  Linhagem  dentro do nivel  0.2  de  Fosforo 
 #> 
 #> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
 #> ------------------------------------------------------------------------
 #>     Niveis     Medias
-#> 1   Dekalb   77.14167
-#> 2        H   76.90000
+#> 1   Dekalb   78.21917
+#> 2        H   78.05667
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.391  de  Fosforo 
+#>  Linhagem  dentro do nivel  0.391  de  Fosforo 
 #> ------------------------------------------------------------------------
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     Dekalb      80.40952 
-#> a     H   78.87083 
+#> a     Dekalb      80.33619 
+#>  b    H   78.0375 
 #> ------------------------------------------------------------------------
 #> 
 #> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.438  de  Fosforo 
 #> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   77.17917
-#> 2        H   80.32083
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   80.36250
-#> 2        H   78.25833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  1  de  Dia  e  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   82.74583
-#> 2        H   78.21250
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   76.90833
-#> 2        H   78.78333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   78.27500
-#> 2        H   78.63333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      77.42857 
-#> a     H   76.1375 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   85.77500
-#> 2        H   82.30833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.454  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   80.0375 
-#>  b    Dekalb      74.52917 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  15  de  Dia  e  0.466  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      87.225 
-#>  b    H   79.23333 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.105  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   83.67917 
-#>  b    Dekalb      76.45417 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   80.38333
-#> 2        H   79.42083
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      83.79524 
-#> a     H   81.61667 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.438  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   82.85833 
-#>  b    Dekalb      77.52083 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   81.59583
-#> 2        H   79.57917
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  30  de  Dia  e  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb    81.0625
-#> 2        H    81.1875
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   78.07083
-#> 2        H   81.10833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb    75.3875
-#> 2        H    77.7750
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      78.4619 
-#> a     H   75.54583 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb    78.5500
-#> 2        H    81.3375
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   78.33333
-#> 2        H   79.77917
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  45  de  Dia  e  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   75.87917
-#> 2        H   79.43333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   81.38021
-#> 2        H   81.40000
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.2  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   79.90833
-#> 2        H   77.55417
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     Dekalb      81.58571 
-#> a     H   78.01667 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   77.92500
-#> 2        H   81.53333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   77.62083
-#> 2        H   78.17500
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro da combinacao dos niveis  60  de  Dia  e  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb   77.95417
-#> 2        H   82.57292
-#> ------------------------------------------------------------------------
-#> 
-#> Desdobrando  Fosforo  dentro de cada nivel de  Dia e Linhagem 
+#> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
 #> ------------------------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                     GL        SQ        QM        Fc    Pr>Fc
-#> Fosforo: 1 Dekalb    5  724.9806 144.99612  6.034417  2.1e-05
-#> Fosforo: 1 H&N       5  124.4108  24.88216   1.03554 0.396169
-#> Fosforo: 15 Dekalb   5 2125.4775 425.09551 17.691533        0
-#> Fosforo: 15 H&N      5  163.6013  32.72026  1.361745 0.237696
-#> Fosforo: 30 Dekalb   5  417.0834  83.41669  3.471618 0.004376
-#> Fosforo: 30 H&N      5  118.3965  23.67931   0.98548 0.426212
-#> Fosforo: 45 Dekalb   5  568.9294 113.78588  4.735516 0.000322
-#> Fosforo: 45 H&N      5  193.8266  38.76533  1.613327 0.155245
-#> Fosforo: 60 Dekalb   5  472.0348  94.40696  3.929009 0.001717
-#> Fosforo: 60 H&N      5  194.7011  38.94022  1.620605 0.153293
-#> Residuo            415 9971.6988  24.02819                   
+#>                          GL        SQ        QM     Fc  Pr>Fc
+#> Fosforo:Linhagem Dekalb   2  142.0485  71.02426 2.9061 0.0569
+#> Fosforo:Linhagem H&N      2  293.1270 146.56351 5.9969 0.0029
+#> Residuo                 205 5010.2162  24.44008              
 #> ------------------------------------------------------------------------
 #> 
 #> 
 #> 
-#>  Fosforo  dentro da combinacao dos niveis  1  de  Dia  e  Dekalb  de  Linhagem 
+#>  Fosforo  dentro do nivel  Dekalb  de  Linhagem 
+#> 
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>     Niveis     Medias
+#> 1    0.105   77.71104
+#> 2      0.2   78.21917
+#> 3    0.391   80.33619
+#> ------------------------------------------------------------------------
+#> 
+#> 
+#>  Fosforo  dentro do nivel  H&N  de  Linhagem 
 #> ------------------------------------------------------------------------
 #> Ajuste de modelos polinomiais de regressao
 #> ------------------------------------------------------------------------
@@ -4271,212 +2176,24 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0  74.3553     1.8811    39.5272    0   
-#> b1  13.3118     5.0980    2.6112  0.0094 
+#> b0  81.4643     0.9893    82.3472    0   
+#> b1  -9.9658     3.7946    -2.6263 0.0093 
 #> -----------------------------------------
 #> 
 #> R2 do modelo linear
 #> --------
-#> 0.225981
+#>   H&N   
 #> --------
-#> 
-#> Analise de variancia do modelo linear
-#> =========================================================
-#>                      GL      SQ        QM     Fc  valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1   163.8319  163.8319 6.82 0.00935
-#> Desvios de Regressao  4   561.1487  140.2872 5.84 0.00014
-#> Residuos             415 9,971.6990 24.0282              
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  75.3572     4.9158    15.3295    0   
-#> b1   3.9769     42.6214   0.0933  0.9257 
-#> b2  16.0411     72.7146   0.2206  0.8255 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#> 0.227594
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> =========================================================
-#>                      GL      SQ        QM     Fc  valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1   163.8319  163.8319 6.82 0.00935
-#> Efeito quadratico     1    1.1693    1.1693  0.05 0.82551
-#> Desvios de Regressao  3   559.9793  186.6598 7.77  5e-05 
-#> Residuos             415 9,971.6990 24.0282              
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  69.5482     10.4106   6.6805     0   
-#> b1  87.2740    138.3210   0.6310  0.5284 
-#> b2 -319.6863   535.3356   -0.5972 0.5507 
-#> b3  398.6916   629.8436   0.6330  0.5271 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#> 0.240874
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ==========================================================
-#>                      GL      SQ        QM     Fc   valor.p
-#> ----------------------------------------------------------
-#> Efeito linear         1   163.8319  163.8319 6.82  0.00935
-#> Efeito quadratico     1    1.1693    1.1693  0.05  0.82551
-#> Efeito cubico         1    9.6279    9.6279   0.4  0.52708
-#> Desvios de Regressao  2   550.3515  275.1757 11.45  1e-05 
-#> Residuos             415 9,971.6990 24.0282               
-#> ----------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  1  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   81.84167
-#> 2      0.2   76.90000
-#> 3    0.391   78.87083
-#> 4    0.438   80.32083
-#> 5    0.454   78.25833
-#> 6    0.466   78.21250
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  15  de  Dia  e  Dekalb  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  75.0425     1.8811    39.8925    0   
-#> b1  14.7561     5.0980    2.8945  0.0040 
-#> -----------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#> 0.094713
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> ==========================================================
-#>                      GL      SQ        QM     Fc   valor.p
-#> ----------------------------------------------------------
-#> Efeito linear         1   201.3104  201.3104 8.38   0.004 
-#> Desvios de Regressao  4  1,924.1670 481.0418 20.02    0   
-#> Residuos             415 9,971.6990 24.0282               
-#> ----------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  80.1879     4.9158    16.3121    0   
-#> b1  -33.1842    42.6214   -0.7786 0.4367 
-#> b2  82.3804     72.7146   1.1329  0.2579 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#> 0.109223
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> ==========================================================
-#>                      GL      SQ        QM     Fc   valor.p
-#> ----------------------------------------------------------
-#> Efeito linear         1   201.3104  201.3104 8.38   0.004 
-#> Efeito quadratico     1   30.8408   30.8408  1.28  0.2579 
-#> Desvios de Regressao  3  1,893.3260 631.1088 26.27    0   
-#> Residuos             415 9,971.6990 24.0282               
-#> ----------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  66.7135     10.4106   6.4082     0   
-#> b1  160.0298   138.3210   1.1569  0.2480 
-#> b2 -696.3655   535.3356   -1.3008 0.1940 
-#> b3  924.7963   629.8436   1.4683  0.1428 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#> 0.133595
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ==========================================================
-#>                      GL      SQ        QM     Fc   valor.p
-#> ----------------------------------------------------------
-#> Efeito linear         1   201.3104  201.3104 8.38   0.004 
-#> Efeito quadratico     1   30.8408   30.8408  1.28  0.2579 
-#> Efeito cubico         1   51.8021   51.8021  2.16  0.14278
-#> Desvios de Regressao  2  1,841.5240 920.7621 38.32    0   
-#> Residuos             415 9,971.6990 24.0282               
-#> ----------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  15  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   78.78333
-#> 2      0.2   78.63333
-#> 3    0.391   76.13750
-#> 4    0.438   82.30833
-#> 5    0.454   80.03750
-#> 6    0.466   79.23333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  30  de  Dia  e  Dekalb  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  77.0411     1.8811    40.9550    0   
-#> b1   8.8379     5.0980    1.7336  0.0837 
-#> -----------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#> 0.173141
+#> 0.575098
 #> --------
 #> 
 #> Analise de variancia do modelo linear
 #> ========================================================
-#>                      GL      SQ       QM     Fc  valor.p
+#>                      GL      SQ        QM    Fc  valor.p
 #> --------------------------------------------------------
-#> Efeito linear         1   72.2142   72.2142 3.01 0.08373
-#> Desvios de Regressao  4   344.8692  86.2173 3.59 0.00685
-#> Residuos             415 9,971.6990 24.0282             
+#> Efeito linear         1   168.5766  168.5766 6.9 0.00928
+#> Desvios de Regressao  1   124.5504  124.5504 5.1 0.02503
+#> Residuos             205 5,010.2160 24.4401             
 #> --------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
@@ -4484,256 +2201,38 @@ for(i in 1:length(parametros)){
 #> =========================================
 #>    Estimativa Erro.padrao   tc    valor.p
 #> -----------------------------------------
-#> b0  69.0857     4.9158    14.0537    0   
-#> b1  82.9588     42.6214   1.9464  0.0523 
-#> b2 -127.3690    72.7146   -1.7516 0.0806 
+#> b0  87.5641     2.8774    30.4311    0   
+#> b1  -71.8012    27.6531   -2.5965 0.0101 
+#> b2  121.3213    53.7423   2.2575  0.0250 
 #> -----------------------------------------
 #> 
 #> R2 do modelo quadratico
-#> --------
-#> 0.349900
-#> --------
+#> -
+#> 1
+#> -
 #> 
 #> Analise de variancia do modelo quadratico
 #> ========================================================
-#>                      GL      SQ       QM     Fc  valor.p
+#>                      GL      SQ        QM    Fc  valor.p
 #> --------------------------------------------------------
-#> Efeito linear         1   72.2142   72.2142 3.01 0.08373
-#> Efeito quadratico     1   73.7235   73.7235 3.07 0.08058
-#> Desvios de Regressao  3   271.1458  90.3819 3.76 0.01096
-#> Residuos             415 9,971.6990 24.0282             
+#> Efeito linear         1   168.5766  168.5766 6.9 0.00928
+#> Efeito quadratico     1   124.5504  124.5504 5.1 0.02503
+#> Desvios de Regressao  0      0         0      0     1   
+#> Residuos             205 5,010.2160 24.4401             
 #> --------------------------------------------------------
 #> ------------------------------------------------------------------------
 #> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  68.5733     10.4106   6.5868     0   
-#> b1  90.3069    138.3210   0.6529  0.5142 
-#> b2 -156.9854   535.3356   -0.2932 0.7695 
-#> b3  35.1708    629.8436   0.0558  0.9555 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#> 0.350080
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> =========================================================
-#>                      GL      SQ        QM     Fc  valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1   72.2142   72.2142  3.01 0.08373
-#> Efeito quadratico     1   73.7235   73.7235  3.07 0.08058
-#> Efeito cubico         1    0.0749    0.0749   0   0.9555 
-#> Desvios de Regressao  2   271.0708  135.5354 5.64 0.00383
-#> Residuos             415 9,971.6990 24.0282              
-#> ---------------------------------------------------------
+#> Analisando os efeitos simples do fator  Dia 
 #> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  30  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> Dia
+#> Teste de Tukey
 #> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   83.67917
-#> 2      0.2   79.42083
-#> 3    0.391   81.61667
-#> 4    0.438   82.85833
-#> 5    0.454   79.57917
-#> 6    0.466   81.18750
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  45  de  Dia  e  Dekalb  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  76.8385     1.8811    40.8473    0   
-#> b1   1.7200     5.0980    0.3374  0.7360 
-#> -----------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#> 0.004807
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> =========================================================
-#>                      GL      SQ        QM     Fc  valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1    2.7351    2.7351  0.11  0.736 
-#> Desvios de Regressao  4   566.1944  141.5486 5.89 0.00013
-#> Residuos             415 9,971.6990 24.0282              
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  78.5526     4.9158    15.9795    0   
-#> b1  -14.2501    42.6214   -0.3343 0.7383 
-#> b2  27.4429     72.7146   0.3774  0.7061 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#> 0.010823
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> =========================================================
-#>                      GL      SQ        QM     Fc  valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1    2.7351    2.7351  0.11  0.736 
-#> Efeito quadratico     1    3.4225    3.4225  0.14 0.70606
-#> Desvios de Regressao  3   562.7719  187.5906 7.81  4e-05 
-#> Residuos             415 9,971.6990 24.0282              
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  92.7979     10.4106   8.9138     0   
-#> b1 -218.5184   138.3210   -1.5798 0.1149 
-#> b2  850.7427   535.3356   1.5892  0.1128 
-#> b3 -977.7061   629.8436   -1.5523 0.1214 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#> 0.112592
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ==========================================================
-#>                      GL      SQ        QM     Fc   valor.p
-#> ----------------------------------------------------------
-#> Efeito linear         1    2.7351    2.7351  0.11   0.736 
-#> Efeito quadratico     1    3.4225    3.4225  0.14  0.70606
-#> Efeito cubico         1   57.8992   57.8992  2.41  0.12135
-#> Desvios de Regressao  2   504.8727  252.4364 10.51  4e-05 
-#> Residuos             415 9,971.6990 24.0282               
-#> ----------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  45  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   81.10833
-#> 2      0.2   77.77500
-#> 3    0.391   75.54583
-#> 4    0.438   81.33750
-#> 5    0.454   79.77917
-#> 6    0.466   79.43333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  60  de  Dia  e  Dekalb  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  82.2083     1.8811    43.7018    0   
-#> b1  -8.3773     5.0980    -1.6433 0.1011 
-#> -----------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#> 0.137454
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> =========================================================
-#>                      GL      SQ        QM     Fc  valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1   64.8833   64.8833  2.7  0.10109
-#> Desvios de Regressao  4   407.1516  101.7879 4.24 0.00226
-#> Residuos             415 9,971.6990 24.0282              
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  79.4591     4.9158    16.1639    0   
-#> b1  17.2373     42.6214   0.4044  0.6861 
-#> b2  -44.0161    72.7146   -0.6053 0.5453 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#> 0.156106
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> =========================================================
-#>                      GL      SQ        QM     Fc  valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1   64.8833   64.8833  2.7  0.10109
-#> Efeito quadratico     1    8.8044    8.8044  0.37 0.54529
-#> Desvios de Regressao  3   398.3471  132.7824 5.53  0.001 
-#> Residuos             415 9,971.6990 24.0282              
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0  90.1140     10.4106   8.6560     0   
-#> b1 -135.5466   138.3210   -0.9799 0.3277 
-#> b2  571.7772   535.3356   1.0681  0.2861 
-#> b3 -731.2827   629.8436   -1.1610 0.2463 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#> 0.224727
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> =========================================================
-#>                      GL      SQ        QM     Fc  valor.p
-#> ---------------------------------------------------------
-#> Efeito linear         1   64.8833   64.8833  2.7  0.10109
-#> Efeito quadratico     1    8.8044    8.8044  0.37 0.54529
-#> Efeito cubico         1   32.3911   32.3911  1.35 0.24629
-#> Desvios de Regressao  2   365.9560  182.9780 7.62 0.00056
-#> Residuos             415 9,971.6990 24.0282              
-#> ---------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro da combinacao dos niveis  60  de  Dia  e  H&N  de  Linhagem 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1    0.105   81.40000
-#> 2      0.2   77.55417
-#> 3    0.391   78.01667
-#> 4    0.438   81.53333
-#> 5    0.454   78.17500
-#> 6    0.466   82.57292
+#> Grupos Tratamentos Medias
+#> a     30      80.82979 
+#> ab    60      79.93989 
+#> ab    1   78.44326 
+#>  b    45      77.70922 
+#>  b    15      77.7 
 #> ------------------------------------------------------------------------
 #> `summarise()` has grouped output by 'dia', 'repeticao', 'linhagem'. You can override using the `.groups` argument.
 #> [1] "-------------------------------------------------"
@@ -4749,305 +2248,53 @@ for(i in 1:length(parametros)){
 #> ------------------------------------------------------------------------
 #> Quadro da analise de variancia
 #> ------------------------------------------------------------------------
-#>                       GL      SQ      QM     Fc  Pr>Fc
-#> Dia                    4 0.00578 0.00145 5.3007  4e-04
-#> Linhagem               1 0.00238 0.00238 8.7092 0.0033
-#> Fosforo                5 0.00475 0.00095 3.4868 0.0042
-#> Dia*Linhagem           4 0.00205 0.00051 1.8816 0.1127
-#> Dia*Fosforo           20 0.00460 0.00023 0.8429 0.6608
-#> Linhagem*Fosforo       5 0.00359 0.00072 2.6295 0.0235
-#> Dia*Linhagem*Fosforo  20 0.00479 0.00024 0.8776 0.6163
-#> Residuo              415 0.11319 0.00027              
-#> Total                474 0.14112                      
+#>                       GL      SQ      QM      Fc  Pr>Fc
+#> Dia                    4 0.00279   7e-04  2.5298 0.0417
+#> Linhagem               1 0.00387 0.00387 14.0082  2e-04
+#> Fosforo                2 0.00107 0.00053  1.9294 0.1479
+#> Dia*Linhagem           4 0.00121   3e-04  1.0983 0.3585
+#> Dia*Fosforo            8 0.00161   2e-04  0.7292 0.6656
+#> Linhagem*Fosforo       2 0.00109 0.00055  1.9799 0.1407
+#> Dia*Linhagem*Fosforo   8 0.00193 0.00024  0.8759 0.5377
+#> Residuo              205 0.05659 0.00028               
+#> Total                234 0.07017                       
 #> ------------------------------------------------------------------------
 #> CV = 4.58 %
 #> 
 #> ------------------------------------------------------------------------
 #> Teste de normalidade dos residuos (Shapiro-Wilk)
-#> valor-p:  0.2652104 
+#> valor-p:  0.5014585 
 #> De acordo com o teste de Shapiro-Wilk a 5% de significancia, os residuos podem ser considerados normais.
 #> ------------------------------------------------------------------------
 #> 
-#> 
-#> 
-#> Interacao Linhagem*Fosforo  significativa: desdobrando a interacao
-#> ------------------------------------------------------------------------
-#> 
-#> Desdobrando  Linhagem  dentro de cada nivel de  Fosforo 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                         GL      SQ      QM      Fc  Pr>Fc
-#> Linhagem:Fosforo 0.105   1 0.00011 0.00011  0.4209 0.5168
-#> Linhagem:Fosforo 0.2     1 0.00319 0.00319 11.6883  7e-04
-#> Linhagem:Fosforo 0.391   1 0.00166 0.00166  6.0826 0.0141
-#> Linhagem:Fosforo 0.438   1 0.00071 0.00071  2.5923 0.1081
-#> Linhagem:Fosforo 0.454   1 0.00000 0.00000   0.002  0.964
-#> Linhagem:Fosforo 0.466   1 0.00026 0.00026  0.9416 0.3324
-#> Residuo                415 0.11319 0.00027               
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.105  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb  0.3638542
-#> 2        H  0.3662500
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.2  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   0.3662083 
-#>  b    Dekalb      0.3535833 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.391  de  Fosforo 
-#> ------------------------------------------------------------------------
-#> Teste de Tukey
-#> ------------------------------------------------------------------------
-#> Grupos Tratamentos Medias
-#> a     H   0.3669583 
-#>  b    Dekalb      0.3575311 
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.438  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb  0.3586377
-#> 2        H  0.3645833
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.454  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb  0.3546667
-#> 2        H  0.3548333
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Linhagem  dentro do nivel  0.466  de  Fosforo 
-#> 
-#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
-#> ------------------------------------------------------------------------
-#>     Niveis     Medias
-#> 1   Dekalb  0.3635417
-#> 2        H  0.3599583
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#> Desdobrando  Fosforo  dentro de cada nivel de  Linhagem 
-#> ------------------------------------------------------------------------
-#> ------------------------------------------------------------------------
-#> Quadro da analise de variancia
-#> ------------------------------------------------------------------------
-#>                          GL      SQ      QM     Fc  Pr>Fc
-#> Fosforo:Linhagem Dekalb   5 0.00375 0.00075 2.7468 0.0187
-#> Fosforo:Linhagem H&N      5 0.00459 0.00092 3.3695 0.0054
-#> Residuo                 415 0.11319 0.00027              
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#> 
-#>  Fosforo  dentro do nivel  Dekalb  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> ==========================================
-#>    Estimativa Erro.padrao    tc    valor.p
-#> ------------------------------------------
-#> b0   0.3598     0.0028    126.9607    0   
-#> b1  -0.0035     0.0077    -0.4535  0.6504 
-#> ------------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.014977
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> ===================================================
-#>                      GL    SQ     QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear         1  0.0001 0.0001 0.21 0.6504 
-#> Desvios de Regressao  4  0.0037 0.0009 3.38 0.00971
-#> Residuos             415 0.1132 0.0003             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   0.3786     0.0074    51.1183    0   
-#> b1  -0.1784     0.0642    -2.7784 0.0057 
-#> b2   0.3006     0.1096    2.7439  0.0063 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.563187
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> ===================================================
-#>                      GL    SQ     QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear         1  0.0001 0.0001 0.21 0.6504 
-#> Efeito quadratico     1  0.0021 0.0021 7.53 0.00634
-#> Desvios de Regressao  3  0.0016 0.0006  2   0.11341
-#> Residuos             415 0.1132 0.0003             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   0.3894     0.0157    24.8228    0   
-#> b1  -0.3325     0.2084    -1.5954 0.1114 
-#> b2   0.9216     0.8066    1.1426  0.2538 
-#> b3  -0.7375     0.9490    -0.7771 0.4375 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>  Dekalb 
-#> --------
-#> 0.607162
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ===================================================
-#>                      GL    SQ     QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear         1  0.0001 0.0001 0.21 0.6504 
-#> Efeito quadratico     1  0.0021 0.0021 7.53 0.00634
-#> Efeito cubico         1  0.0002 0.0002 0.6  0.43753
-#> Desvios de Regressao  2  0.0015 0.0007 2.7  0.06855
-#> Residuos             415 0.1132 0.0003             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> 
-#>  Fosforo  dentro do nivel  H&N  de  Linhagem 
-#> ------------------------------------------------------------------------
-#> Ajuste de modelos polinomiais de regressao
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo Linear
-#> ==========================================
-#>    Estimativa Erro.padrao    tc    valor.p
-#> ------------------------------------------
-#> b0   0.3695     0.0028    130.3870    0   
-#> b1  -0.0187     0.0077    -2.4435  0.0150 
-#> ------------------------------------------
-#> 
-#> R2 do modelo linear
-#> --------
-#>   H&N   
-#> --------
-#> 0.354423
-#> --------
-#> 
-#> Analise de variancia do modelo linear
-#> ===================================================
-#>                      GL    SQ     QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear         1  0.0016 0.0016 5.97 0.01496
-#> Desvios de Regressao  4  0.0030 0.0007 2.72 0.02938
-#> Residuos             415 0.1132 0.0003             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo quadratico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   0.3572     0.0073    48.8477    0   
-#> b1   0.0965     0.0632    1.5280  0.1273 
-#> b2  -0.1983     0.1078    -1.8384 0.0667 
-#> -----------------------------------------
-#> 
-#> R2 do modelo quadratico
-#> --------
-#>   H&N   
-#> --------
-#> 0.555030
-#> --------
-#> 
-#> Analise de variancia do modelo quadratico
-#> ===================================================
-#>                      GL    SQ     QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear         1  0.0016 0.0016 5.97 0.01496
-#> Efeito quadratico     1  0.0009 0.0009 3.38 0.06672
-#> Desvios de Regressao  3  0.0020 0.0007 2.5  0.05916
-#> Residuos             415 0.1132 0.0003             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Modelo cubico
-#> =========================================
-#>    Estimativa Erro.padrao   tc    valor.p
-#> -----------------------------------------
-#> b0   0.3780     0.0156    24.2888    0   
-#> b1  -0.2012     0.2058    -0.9779 0.3287 
-#> b2   0.9923     0.7905    1.2553  0.2101 
-#> b3  -1.4061     0.9248    -1.5203 0.1292 
-#> -----------------------------------------
-#> 
-#> R2 do modelo cubico
-#> --------
-#>   H&N   
-#> --------
-#> 0.692234
-#> --------
-#> 
-#> Analise de variancia do modelo cubico
-#> ===================================================
-#>                      GL    SQ     QM    Fc  valor.p
-#> ---------------------------------------------------
-#> Efeito linear         1  0.0016 0.0016 5.97 0.01496
-#> Efeito quadratico     1  0.0009 0.0009 3.38 0.06672
-#> Efeito cubico         1  0.0006 0.0006 2.31 0.12919
-#> Desvios de Regressao  2  0.0014 0.0007 2.59 0.07605
-#> Residuos             415 0.1132 0.0003             
-#> ---------------------------------------------------
-#> ------------------------------------------------------------------------
-#> 
-#> Analisando os efeitos simples do fator  Dia 
+#> Interacao nao significativa: analisando os efeitos simples
 #> ------------------------------------------------------------------------
 #> Dia
 #> Teste de Tukey
 #> ------------------------------------------------------------------------
 #> Grupos Tratamentos Medias
-#> a     1   0.3667193 
-#> ab    45      0.3624737 
-#>  b    15      0.359807 
-#>  b    30      0.3592281 
-#>  b    60      0.3563677 
+#> a     1   0.3675532 
+#> ab    45      0.3646809 
+#> ab    30      0.3620922 
+#> ab    15      0.3607801 
+#>  b    60      0.3573991 
+#> ------------------------------------------------------------------------
+#> 
+#> Linhagem
+#> Teste de Tukey
+#> ------------------------------------------------------------------------
+#> Grupos Tratamentos Medias
+#> a     H   0.3664722 
+#>  b    Dekalb      0.3583573 
+#> ------------------------------------------------------------------------
+#> 
+#> Fosforo
+#> De acordo com o teste F, as medias desse fator sao estatisticamente iguais.
+#> ------------------------------------------------------------------------
+#>   Niveis    Medias
+#> 1  0.105 0.3650521
+#> 2    0.2 0.3598958
+#> 3  0.391 0.3625590
 #> ------------------------------------------------------------------------
 ```
 
@@ -5057,12 +2304,13 @@ for(i in 1:length(parametros)){
 names(dados)
 #>  [1] "dia"                   "repeticao"             "linhagem"             
 #>  [4] "nivel_de_fosforo_disp" "class_peso"            "resistencia_kgf"      
-#>  [7] "frequencia_ressonante" "shape_index"           "peso_g"               
-#> [10] "altura_de_albumen"     "uh"                    "espessura_mm"
+#>  [7] "frequencia_ressonante" "freq_peso"             "shape_index"          
+#> [10] "peso_g"                "altura_de_albumen"     "uh"                   
+#> [13] "espessura_mm"
 parametros
-#> [1] "resistencia_kgf"       "frequencia_ressonante" "shape_index"          
-#> [4] "peso_g"                "altura_de_albumen"     "uh"                   
-#> [7] "espessura_mm"
+#> [1] "resistencia_kgf"       "frequencia_ressonante" "freq_peso"            
+#> [4] "shape_index"           "peso_g"                "altura_de_albumen"    
+#> [7] "uh"                    "espessura_mm"
 dados_rs <- dados
 for(i in 6:12){
   lin<-dados$linhagem
@@ -5081,12 +2329,13 @@ for(i in 6:12){
 }
 
 dados_rs  |> 
+  # filter(class_peso %in% classes) |> 
   select(resistencia_kgf:espessura_mm)  |>
   cor(use = "p")  |>
   corrplot::corrplot.mixed(lower.col = "black")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ## Análise de correlação por tratamento
 
@@ -5105,48 +2354,24 @@ for(i in 1:length(tratamentos)){
 #> [1] "H&N_0.391"
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
     #> [1] "H&N_0.105"
 
-![](README_files/figure-gfm/unnamed-chunk-21-2.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-17-2.png)<!-- -->
 
     #> [1] "H&N_0.2"
 
-![](README_files/figure-gfm/unnamed-chunk-21-3.png)<!-- -->
-
-    #> [1] "H&N_0.454"
-
-![](README_files/figure-gfm/unnamed-chunk-21-4.png)<!-- -->
-
-    #> [1] "H&N_0.466"
-
-![](README_files/figure-gfm/unnamed-chunk-21-5.png)<!-- -->
-
-    #> [1] "H&N_0.438"
-
-![](README_files/figure-gfm/unnamed-chunk-21-6.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-17-3.png)<!-- -->
 
     #> [1] "Dekalb_0.391"
 
-![](README_files/figure-gfm/unnamed-chunk-21-7.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-17-4.png)<!-- -->
 
     #> [1] "Dekalb_0.105"
 
-![](README_files/figure-gfm/unnamed-chunk-21-8.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-17-5.png)<!-- -->
 
     #> [1] "Dekalb_0.2"
 
-![](README_files/figure-gfm/unnamed-chunk-21-9.png)<!-- -->
-
-    #> [1] "Dekalb_0.454"
-
-![](README_files/figure-gfm/unnamed-chunk-21-10.png)<!-- -->
-
-    #> [1] "Dekalb_0.466"
-
-![](README_files/figure-gfm/unnamed-chunk-21-11.png)<!-- -->
-
-    #> [1] "Dekalb_0.438"
-
-![](README_files/figure-gfm/unnamed-chunk-21-12.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-17-6.png)<!-- -->

@@ -33,12 +33,17 @@ dplyr::glimpse(dados)
 dados <- dados |> 
   mutate(
     class_peso = case_when(
-      peso_g < 53 ~ "pequeno",
-      peso_g < 63 ~ "medio",
-      peso_g < 73 ~ "grande",
-      TRUE ~ "extra_grande"
-    )
+      peso_g < 50 ~ "pequeno",
+      peso_g < 55 ~ "medio",
+      peso_g < 60 ~ "grande",
+      peso_g < 65 ~ "extra_grande",
+      TRUE ~ "jumbo"
+    ),
+    freq_peso = frequencia_ressonante / peso_g
   )
+nd_filter <- c(0.105, 0.200, 0.391)
+dados <- dados |> 
+  filter(nivel_de_fosforo_disp %in% nd_filter)
 table(dados$class_peso)
 ```
 
@@ -74,6 +79,7 @@ dados <- dados |>
          class_peso,
          resistencia_kgf,
          frequencia_ressonante,
+         freq_peso,
          shape_index,
          peso_g,
          altura_de_albumen,
@@ -169,8 +175,8 @@ for(i in 1:length(parametros)){
     ggplot(aes(x=dia, y=re, color=linhagem)) +
     geom_point() +
     geom_smooth(method = "lm")+
-    labs(x="Dias",y=parametros[i]) #+
-    # facet_wrap(~class_peso)
+    labs(x="Dias",y=parametros[i]) +
+    facet_wrap(~linhagem)
   print(plot)
 
   # tab <- da |>
@@ -231,8 +237,8 @@ for(i in 1:length(parametros)){
 
 ## Matriz de correlação para linhagem **DEKALB**
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
-classes<-c("medio", "grande")
-for(i in 1:2){
+classes<-c("grande", "extra_grande", "jumbo")
+for(i in 1:length(classes)){
   dados  |>
     filter(linhagem == "Dekalb", 
            class_peso == classes[i],
@@ -244,30 +250,11 @@ for(i in 1:2){
 }
 ```
 
-### Classe peso do ovo = **MEDIO**
-
-
-```{r, message=FALSE, error=FALSE, warning=FALSE}
-dados |>
-  filter(linhagem == "Dekalb", class_peso =="medio") |>
-  select(resistencia_kgf:espessura_mm) |>
-  ggpairs()
-```
-
-
-### Classe peso do ovo = **GRANDE**
-
-```{r, message=FALSE, error=FALSE, warning=FALSE}
-dados |>
-  filter(linhagem == "Dekalb", class_peso =="grande") |>
-  select(resistencia_kgf:espessura_mm) |>
-  ggpairs()
-```
 
 
 ## Matriz de correlação para linhagem **H&N**
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
-for(i in 1:2){
+for(i in 1:length(classes)){
   dados  |>
     filter(linhagem == "H&N", class_peso == classes[i]) |>
     drop_na() |> 
@@ -277,24 +264,6 @@ for(i in 1:2){
 }
 ```
 
-### Classe peso do ovo = **MEDIO**
-
-```{r, message=FALSE, error=FALSE, warning=FALSE}
-dados |>
-  filter(linhagem == "H&N", class_peso =="medio") |>
-  select(resistencia_kgf:espessura_mm) |>
-  ggpairs()
-```
-
-
-### Classe peso do ovo = **GRANDE**
-
-```{r, message=FALSE, error=FALSE, warning=FALSE}
-dados |>
-  filter(linhagem == "H&N", class_peso =="grande") |>
-  select(resistencia_kgf:espessura_mm) |>
-  ggpairs()
-```
 
 ## Análise de variância
 
@@ -365,6 +334,7 @@ for(i in 6:12){
 }
 
 dados_rs  |> 
+  # filter(class_peso %in% classes) |> 
   select(resistencia_kgf:espessura_mm)  |>
   cor(use = "p")  |>
   corrplot::corrplot.mixed(lower.col = "black")
