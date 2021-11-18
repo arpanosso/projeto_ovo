@@ -1,0 +1,198 @@
+# Análise qualidade da casca - Temperatura Ambiente
+
+## Carregando os pacotes no R
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(skimr)
+library(GGally)
+library(ExpDes.pt)
+```
+
+## Pré-tratamento dos dados
+-carregando o banco de dados;
+-mudando os nomes das colunas;
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados<- readxl::read_excel("../data-raw/Dados Mestrado João.xlsx",
+                           sheet = "Temperatura Ambiente",na = "NA") |>
+  janitor::clean_names()
+dplyr::glimpse(dados)
+
+dados <- dados |> 
+  mutate(
+    freq_peso = frequencia_ressonante / peso_g
+  )
+```
+
+- seleção das variáveis para a análise.
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados <- dados |>
+  select(dias_armazenados,
+         resistencia_kgf,
+         frequencia_ressonante,
+         freq_peso,
+         shape_index,
+         peso_g,
+         uh,
+         espessura_mm,
+         altura_de_albumem,
+         indice_gema
+         ) #|> 
+  # mutate(log_frequencia_ressonante = log(frequencia_ressonante))
+```
+
+
+```{r}
+for(k in 2:length(dados)){ # para cada variável no BD
+   da <- dados 
+    y<-da[k] |>  pull()
+    dias <- da$dias_armazenados
+    y[is.na(y)] <- mean(y, na.rm=TRUE)
+    
+    boxplot_original <- tibble(y,dias) |>
+       ggplot(aes(y=y,x=forcats::as_factor(dias))) +
+       geom_boxplot() +
+       labs(y = names(dados[k]), x="Dias armazenados")
+     print(boxplot_original)
+}
+```
+
+
+## Gráficos de dispersão
+```{r}
+ggpairs(dados |> 
+          filter(frequencia_ressonante <=8000) |>
+          select(-dias_armazenados))
+```
+
+
+## Análise de Correlação
+
+A análise foi realizada para descrever o comportamento das variáveis ao longo do tempo.
+
+- Análise com frequencias abaixo de 8000
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados |> 
+  filter(frequencia_ressonante <= 8000) |> 
+  group_by(dias_armazenados) |> 
+  summarise(
+    resistencia_kgf = mean(resistencia_kgf,na.rm=TRUE),
+    frequencia_ressonante = mean(frequencia_ressonante,na.rm=TRUE),
+    freq_peso = mean(freq_peso,na.rm=TRUE),
+    shape_index = mean(shape_index,na.rm=TRUE),
+    peso_g = mean(peso_g,na.rm=TRUE),
+    uh = mean(uh,na.rm=TRUE),
+    espessura_mm = mean(espessura_mm,na.rm=TRUE),
+    altura_de_albumem= mean(altura_de_albumem,na.rm=TRUE),
+    indice_gema= mean(indice_gema,na.rm=TRUE)
+    ) |> 
+  ungroup() |> 
+  select(-dias_armazenados) |> 
+  cor() |> 
+  corrplot::corrplot.mixed(lower = "number",lower.col = "black")
+```
+
+
+## Estatística descritiva do banco de dados
+ - resumo estatístico para todas as variáveios do banco de dados
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+skim(dados)
+```
+
+# Análise qualidade da casca - Temperatura Controlada
+
+## Pré-tratamento dos dados
+-carregando o banco de dados;
+-mudando os nomes das colunas;
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados<- readxl::read_excel("../data-raw/Dados Mestrado João.xlsx",
+                           sheet = "Temperatura Controlada",na = "NA") |>
+  janitor::clean_names()
+dplyr::glimpse(dados)
+
+dados <- dados |> 
+  mutate(
+    freq_peso = frequencia_ressonante / peso_g
+  )
+```
+
+- seleção das variáveis para a análise.
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados <- dados |>
+  select(dias_armazenados,
+         resistencia_kgf,
+         frequencia_ressonante,
+         freq_peso,
+         shape_index,
+         peso_g,
+         uh,
+         espessura_mm,
+         altura_de_albumem,
+         indice_gema
+         ) #|> 
+  # mutate(log_frequencia_ressonante = log(frequencia_ressonante))
+```
+
+
+```{r}
+for(k in 2:length(dados)){ # para cada variável no BD
+   da <- dados 
+    y<-da[k] |>  pull()
+    dias <- da$dias_armazenados
+    y[is.na(y)] <- mean(y, na.rm=TRUE)
+    
+    boxplot_original <- tibble(y,dias) |>
+       ggplot(aes(y=y,x=forcats::as_factor(dias))) +
+       geom_boxplot() +
+       labs(y = names(dados[k]), x="Dias armazenados")
+     print(boxplot_original)
+}
+```
+
+
+## Gráficos de dispersão
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+ggpairs(dados |> 
+          filter(frequencia_ressonante <=8000) |>
+          select(-dias_armazenados))
+```
+
+
+## Análise de Correlação
+
+A análise foi realizada para descrever o comportamento das variáveis ao longo do tempo.
+
+- Análise com frequencias abaixo de 8000
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+dados |> 
+  filter(frequencia_ressonante <= 8000) |> 
+  group_by(dias_armazenados) |> 
+  summarise(
+    resistencia_kgf = mean(resistencia_kgf,na.rm=TRUE),
+    frequencia_ressonante = mean(frequencia_ressonante,na.rm=TRUE),
+    freq_peso = mean(freq_peso,na.rm=TRUE),
+    shape_index = mean(shape_index,na.rm=TRUE),
+    peso_g = mean(peso_g,na.rm=TRUE),
+    uh = mean(uh,na.rm=TRUE),
+    espessura_mm = mean(espessura_mm,na.rm=TRUE),
+    altura_de_albumem= mean(altura_de_albumem,na.rm=TRUE),
+    indice_gema= mean(indice_gema,na.rm=TRUE)
+    ) |> 
+  ungroup() |> 
+  select(-dias_armazenados) |> 
+  cor() |> 
+  corrplot::corrplot.mixed(lower = "number",lower.col = "black")
+```
+
+
+## Estatística descritiva do banco de dados
+ - resumo estatístico para todas as variáveios do banco de dados
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+skim(dados)
+```

@@ -31,6 +31,8 @@ dados<- readxl::read_excel("data-raw/Dados Mestrado João.xlsx") |>
   janitor::clean_names()
 dplyr::glimpse(dados)
 dados <- dados |> 
+  filter(frequencia_ressonante <= 8000)
+dados <- dados |> 
   mutate(
     class_peso = case_when(
       peso_g < 50 ~ "pequeno",
@@ -44,7 +46,7 @@ dados <- dados |>
 nd_filter <- c(0.105, 0.200, 0.391)
 dados <- dados |> 
   filter(nivel_de_fosforo_disp %in% nd_filter)
-table(dados$class_peso)
+# table(dados$class_peso)
 ```
 
 
@@ -84,6 +86,8 @@ dados <- dados |>
          peso_g,
          altura_de_albumen,
          uh,
+         altura_de_albumen,
+         indice_gema,
          espessura_mm
          ) #|> 
   # mutate(log_frequencia_ressonante = log(frequencia_ressonante))
