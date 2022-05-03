@@ -17,6 +17,7 @@ knitr::opts_chunk$set(
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
 library(tidyverse)
 library(lubridate)
+library(nlme)
 library(skimr)
 library(GGally)
 library(ExpDes.pt)
@@ -269,52 +270,28 @@ for(i in 1:length(classes)){
 ```
 
 
-## Análise de variância
+## Análise de variância por linhagem
 
 ```{r}
-for(i in 1:length(parametros)){
-  da <- dados |>
-    select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
-  names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
-  
-  da<- da |> 
-    group_by(repeticao, linhagem, nivel_de_fosforo_disp) |> 
-    summarise(y = mean(y, na.rm=TRUE))
-  linhagem<-da$linhagem
-  nivel_de_fosforo <- da$nivel_de_fosforo_disp
-  y <- da$y
-  print("-------------------------------------------------")
-  print(paste0("Variável: ",parametros[i]))
-  print("-------------------------------------------------")
-  fat2.dic(linhagem,nivel_de_fosforo,y,quali = c(TRUE, FALSE), mcomp = "tukey",
-           fac.names = c("Linhagem","Fosforo"))
+for(j in seq_along(linhagens)){
+  for(i in 1:length(parametros)){
+    da <- dados |> filter(linhagem == linhagens[j]) |> 
+      select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
+    names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
+    
+    da<- da |> 
+      group_by(repeticao, nivel_de_fosforo_disp) |> 
+      summarise(y = mean(y, na.rm=TRUE))
+    nivel_de_fosforo <- da$nivel_de_fosforo_disp
+    y <- da$y
+    print("-------------------------------------------------")
+    print(paste0("Linhagem: ",linhagens[j],"; Variável: ",parametros[i]))
+    print("-------------------------------------------------")
+    dic(nivel_de_fosforo,y,quali = TRUE, mcomp = "tukey")
+  }
 }
 ```
  
- 
-## Adicionando o dia na análise (provisória)
-
-```{r}
-for(i in 1:length(parametros)){
-  da <- dados |>
-    select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
-  names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
-  
-  da<- da |> 
-    group_by(dia, repeticao, linhagem, nivel_de_fosforo_disp) |> 
-    summarise(y = mean(y, na.rm=TRUE))
-  linhagem<-da$linhagem
-  nivel_de_fosforo <- da$nivel_de_fosforo_disp
-  y <- da$y
-  dia <- da$dia
-  print("-------------------------------------------------")
-  print(paste0("Variável: ",parametros[i]))
-  print("-------------------------------------------------")
-  fat3.dic(dia, linhagem,nivel_de_fosforo,y,quali = c(TRUE, TRUE, FALSE), mcomp = "tukey",
-           fac.names = c("Dia", "Linhagem","Fosforo"))
-}
-```
-
 ## Análise de correlação desconsiderando o efeito dos tratamentos
 
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
@@ -362,3 +339,34 @@ for(i in 1:length(tratamentos)){
 ```
 
 
+
+## Análise de medidas repetidas (modelos mistos)
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+for(j in seq_along(linhagens)){
+  for(i in 1:length(parametros)){
+    da <- dados |>
+      select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
+    names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
+    
+    da<- da |> filter(linhagem == linhagens[j]) |>
+      group_by(dia, repeticao, nivel_de_fosforo_disp) |> 
+      summarise(y = mean(y, na.rm=TRUE))
+    
+    nivel_de_fosforo <- da$nivel_de_fosforo_disp
+    bloco <- da$repeticao
+    y <- da$y
+    dia <- da$dia
+    print("-------------------------------------------------")
+    print(paste0("Linhagem: ",linhagens[j],"; Variável: ",parametros[i]))
+    print("-------------------------------------------------")
+    
+    parc <- interaction(nivel_de_fosforo, drop=TRUE)
+    subp <- interaction(nivel_de_fosforo, dia, drop=TRUE)
+    mod <- lme(y~nivel_de_fosforo*dia, random=~1|parc/subp,
+               method="ML")
+    print(anova(mod))
+    cat("\n")
+  }
+}
+```
