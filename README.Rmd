@@ -20,6 +20,8 @@ library(lubridate)
 library(skimr)
 library(GGally)
 library(ExpDes.pt)
+library(modelbased)
+library(rstatix)
 ```
 
 ## Pré-tratamento dos dados
@@ -272,76 +274,77 @@ for(i in 1:length(classes)){
 ## Análise de variância
 
 ```{r}
-for(i in 1:length(parametros)){
-  da <- dados |>
-    select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
-  names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
-  
-  da<- da |> 
-    group_by(repeticao, linhagem, nivel_de_fosforo_disp) |> 
-    summarise(y = mean(y, na.rm=TRUE))
-  linhagem<-da$linhagem
-  nivel_de_fosforo <- da$nivel_de_fosforo_disp
-  y <- da$y
-  print("-------------------------------------------------")
-  print(paste0("Variável: ",parametros[i]))
-  print("-------------------------------------------------")
-  fat2.dic(linhagem,nivel_de_fosforo,y,quali = c(TRUE, FALSE), mcomp = "tukey",
-           fac.names = c("Linhagem","Fosforo"))
-}
+# for(i in 1:length(parametros)){
+#   da <- dados |>
+#     select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
+#   names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
+#   
+#   
+#   da<- da |> 
+#     group_by(repeticao, linhagem, nivel_de_fosforo_disp) |> 
+#     summarise(y = mean(y, na.rm=TRUE))
+#   linhagem<-da$linhagem
+#   nivel_de_fosforo <- da$nivel_de_fosforo_disp
+#   y <- da$y
+#   print("-------------------------------------------------")
+#   print(paste0("Variável: ",parametros[i]))
+#   print("-------------------------------------------------")
+#   fat2.dic(linhagem,nivel_de_fosforo,y,quali = c(TRUE, FALSE), mcomp = "tukey",
+#            fac.names = c("Linhagem","Fosforo"))
+# }
 ```
  
  
 ## Adicionando o dia na análise (provisória)
 
 ```{r}
-for(i in 1:length(parametros)){
-  da <- dados |>
-    select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
-  names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
-  
-  da<- da |> 
-    group_by(dia, repeticao, linhagem, nivel_de_fosforo_disp) |> 
-    summarise(y = mean(y, na.rm=TRUE))
-  linhagem<-da$linhagem
-  nivel_de_fosforo <- da$nivel_de_fosforo_disp
-  y <- da$y
-  dia <- da$dia
-  print("-------------------------------------------------")
-  print(paste0("Variável: ",parametros[i]))
-  print("-------------------------------------------------")
-  fat3.dic(dia, linhagem,nivel_de_fosforo,y,quali = c(TRUE, TRUE, FALSE), mcomp = "tukey",
-           fac.names = c("Dia", "Linhagem","Fosforo"))
-}
+# for(i in 1:length(parametros)){
+#   da <- dados |>
+#     select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
+#   names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
+#   
+#   da<- da |> 
+#     group_by(dia, repeticao, linhagem, nivel_de_fosforo_disp) |> 
+#     summarise(y = mean(y, na.rm=TRUE))
+#   linhagem<-da$linhagem
+#   nivel_de_fosforo <- da$nivel_de_fosforo_disp
+#   y <- da$y
+#   dia <- da$dia
+#   print("-------------------------------------------------")
+#   print(paste0("Variável: ",parametros[i]))
+#   print("-------------------------------------------------")
+#   fat3.dic(dia, linhagem,nivel_de_fosforo,y,quali = c(TRUE, TRUE, FALSE), mcomp = "tukey",
+#            fac.names = c("Dia", "Linhagem","Fosforo"))
+# }
 ```
 
 ## Análise de correlação desconsiderando o efeito dos tratamentos
 
 ```{r, message=FALSE, error=FALSE, warning=FALSE}
-names(dados)
-parametros
-dados_rs <- dados
-for(i in 6:12){
-  lin<-dados$linhagem
-  pd <- dados$nivel_de_fosforo_disp
-  dia <- forcats::as_factor(dados$dia)
-  trat <- paste0(lin,"_",pd)
-  trat <- forcats::as_factor(trat)
-  y <- dados[i] |>  pull()
-  sum(is.na(y))
-  
-  mod <- aov(y~trat*dia)
-  anova(mod)
-  rs <- rstudent(mod)
-  yp <- predict(mod)
-  dados_rs[,i] <- rs
-}
-
-dados_rs  |> 
-  # filter(class_peso %in% classes) |> 
-  select(resistencia_kgf:espessura_mm)  |>
-  cor(use = "p")  |>
-  corrplot::corrplot.mixed(lower.col = "black")
+# names(dados)
+# parametros
+# dados_rs <- dados
+# for(i in 6:12){
+#   lin<-dados$linhagem
+#   pd <- dados$nivel_de_fosforo_disp
+#   dia <- forcats::as_factor(dados$dia)
+#   trat <- paste0(lin,"_",pd)
+#   trat <- forcats::as_factor(trat)
+#   y <- dados[i] |>  pull()
+#   sum(is.na(y))
+#   
+#   mod <- aov(y~trat*dia)
+#   anova(mod)
+#   rs <- rstudent(mod)
+#   yp <- predict(mod)
+#   dados_rs[,i] <- rs
+# }
+# 
+# dados_rs  |> 
+#   # filter(class_peso %in% classes) |> 
+#   select(resistencia_kgf:espessura_mm)  |>
+#   cor(use = "p")  |>
+#   corrplot::corrplot.mixed(lower.col = "black")
 
 ```
 
@@ -361,4 +364,37 @@ for(i in 1:length(tratamentos)){
 }
 ```
 
+
+## Adicionando o dia na análise (provisória)
+
+```{r}
+for(j in 1:2){
+  for(i in 1:length(parametros)){
+    da <- dados |>
+      select(dia, repeticao, linhagem, nivel_de_fosforo_disp, parametros[i]) 
+    names(da) <- c("dia","repeticao","linhagem","nivel_de_fosforo_disp","y")
+    
+    da<- da |> 
+      filter(linhagem==linhagens[j]) |> 
+      group_by(dia, repeticao, nivel_de_fosforo_disp) |> 
+      summarise(y = mean(y, na.rm=TRUE))
+    
+    nivel_de_fosforo <- da$nivel_de_fosforo_disp |> as.factor()
+    y <- da$y
+    dia <- da$dia
+    rep <- da
+    print("-------------------------------------------------")
+    print(paste0("Variável: ",parametros[i],"; Linhagem: ", linhagens[j]))
+    print("-------------------------------------------------")
+    
+    library(lmerTest)
+    fit <- lmer(y ~ nivel_de_fosforo*dia + (1|dia))
+    anova(fit)
+    da$nivel_de_fosforo_disp <- as.factor(da$nivel_de_fosforo_disp)
+    res <- da |> anova_test(dv = y, wid = nivel_de_fosforo, within = dia)
+    print(res$`Mauchly's Test for Sphericity`)
+
+  }
+}
+```
 

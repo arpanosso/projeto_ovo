@@ -1,3 +1,8 @@
+# Nova Etapas
+# 1- Bconstruir novas vari[aveis de transformação] -amortecimento
+# testar o modelo multivariado a partir ketelaere 2003
+
+
 library(dplyr)
 library(tidyr)
 library(ggplot2)
